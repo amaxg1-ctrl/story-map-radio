@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Story Map Radio</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(145deg, #eceef2 0%, #dde0e7 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      overflow: hidden;
+    }
+
+    .wordmark {
+      font-size: 0.75rem;
+      font-weight: 300;
+      letter-spacing: 0.55em;
+      color: #a8acb8;
+      text-transform: uppercase;
+      margin-bottom: 48px;
+      user-select: none;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      width: 320px;
+    }
+
+    .card {
+      height: 140px;
+      border-radius: 20px;
+      border: 1.5px solid rgba(180, 184, 196, 0.55);
+      background: rgba(200, 204, 212, 0.28);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.15s;
+      user-select: none;
+    }
+
+    .card:hover {
+      background: rgba(200, 204, 212, 0.45);
+      transform: scale(1.03);
+    }
+
+    .card.disabled {
+      cursor: default;
+      opacity: 0.45;
+    }
+
+    .card.disabled:hover {
+      background: rgba(200, 204, 212, 0.28);
+      transform: none;
+    }
+
+    .card-label {
+      font-size: 0.7rem;
+      font-weight: 300;
+      letter-spacing: 0.45em;
+      color: #a8acb8;
+      text-transform: uppercase;
+    }
+
+    .card-icon {
+      font-size: 1.6rem;
+      line-height: 1;
+    }
+
+    .card-sub {
+      font-size: 0.6rem;
+      font-weight: 300;
+      letter-spacing: 0.2em;
+      color: #c0c4d0;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+
+  <p class="wordmark">Story Map Radio</p>
+
+  <div class="grid">
+    <a href="/speak/" class="card">
+      <span class="card-icon">🎙</span>
+      <span class="card-label">Speak</span>
+    </a>
+
+    <div class="card disabled">
+      <span class="card-icon">📻</span>
+      <span class="card-label">Listen</span>
+      <span class="card-sub">Soon</span>
+    </div>
+
+    <div class="card disabled">
+      <span class="card-icon">📖</span>
+      <span class="card-label">Aloud</span>
+      <span class="card-sub">Soon</span>
+    </div>
+
+    <div class="card disabled">
+      <span class="card-icon">🗺</span>
+      <span class="card-label">Move</span>
+      <span class="card-sub">Soon</span>
+    </div>
+  </div>
+
+</body>
+</html>

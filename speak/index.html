@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>SPEAK</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(145deg, #eceef2 0%, #dde0e7 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── Title ── */
+    .app-title {
+      font-size: 1rem;
+      font-weight: 300;
+      letter-spacing: 0.55em;
+      color: #a8acb8;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      user-select: none;
+    }
+
+    /* ── Canvas + controls wrapper ── */
+    .stage {
+      position: relative;
+      width: 380px;
+      height: 380px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #visualizer {
+      position: absolute;
+      inset: 0;
+    }
+
+    /* ── Buttons ── */
+    .controls {
+      position: relative;
+      display: flex;
+      gap: 18px;
+      z-index: 10;
+    }
+
+    .btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(180, 184, 196, 0.55);
+      background: rgba(200, 204, 212, 0.28);
+      color: #909aaa;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.18s, border-color 0.18s, color 0.18s, box-shadow 0.18s;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      user-select: none;
+      outline: none;
+    }
+
+    .btn:disabled {
+      opacity: 0.28;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .btn:not(:disabled):hover {
+      background: rgba(200, 204, 212, 0.48);
+    }
+
+    .btn:not(:disabled):active,
+    .btn.lit {
+      background: rgba(255, 140, 0, 0.12);
+      border-color: rgba(255, 140, 0, 0.8);
+      color: #ff8c00;
+      box-shadow:
+        0 0 12px rgba(255, 140, 0, 0.45),
+        0 0 32px rgba(255, 140, 0, 0.18);
+    }
+
+    /* ── Duration ── */
+    .duration {
+      margin-top: 20px;
+      font-size: 3rem;
+      font-weight: 100;
+      letter-spacing: 0.06em;
+      color: #a0a8b8;
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+    }
+
+    /* ── Status label ── */
+    .status {
+      margin-top: 8px;
+      font-size: 0.7rem;
+      font-weight: 400;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: #b8bdc8;
+      height: 14px;
+      user-select: none;
+      transition: color 0.3s;
+    }
+
+    .status.recording { color: #ff8c00; }
+    .status.armed     { color: #a0b4d0; }
+    .status.paused    { color: #b8bdc8; }
+
+    /* ── Upload area ── */
+    .upload-area {
+      margin-top: 32px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .upload-btn {
+      background: rgba(200, 204, 212, 0.28);
+      border: 1px solid rgba(180, 184, 196, 0.45);
+      color: #a0a8b8;
+      padding: 9px 28px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      transition: background 0.18s, color 0.18s;
+      outline: none;
+    }
+
+    .upload-btn:hover {
+      background: rgba(200, 204, 212, 0.48);
+      color: #7880a0;
+    }
+
+    .upload-notice {
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      color: transparent;
+      height: 14px;
+      transition: color 0.3s;
+    }
+
+    .upload-notice.success { color: #68b87a; }
+    .upload-notice.error   { color: #d87878; }
+  </style>
+</head>
+<body>
+
+  <p class="app-title">Speak</p>
+
+  <div class="stage">
+    <canvas id="visualizer" width="380" height="380"></canvas>
+    <div class="controls">
+      <button class="btn" id="btn-record" title="Arm recording">&#9679;</button>
+      <button class="btn" id="btn-play"   title="Start / resume" disabled>&#9654;</button>
+      <button class="btn" id="btn-pause"  title="Pause" disabled>&#9646;&#9646;</button>
+      <button class="btn" id="btn-stop"   title="Stop" disabled>&#9632;</button>
+    </div>
+  </div>
+
+  <div class="duration" id="duration">00:00</div>
+  <div class="status"   id="status"></div>
+
+  <div class="upload-area">
+    <input type="file" id="file-input" accept="audio/*" style="display:none">
+    <button class="upload-btn" id="upload-btn">Upload from device</button>
+    <div class="upload-notice" id="upload-notice">&nbsp;</div>
+  </div>
+
+<script>
+/* ── State ─────────────────────────────────────────────── */
+const S = { IDLE: 'idle', ARMED: 'armed', RECORDING: 'recording', PAUSED: 'paused' };
+let state = S.IDLE;
+
+/* ── Audio ──────────────────────────────────────────────── */
+let audioCtx    = null;
+let analyser    = null;
+let stream      = null;
+let recorder    = null;
+let chunks      = [];
+
+/* ── Timer ──────────────────────────────────────────────── */
+let timerID      = null;
+let elapsedSec   = 0;
+
+/* ── Canvas ─────────────────────────────────────────────── */
+const canvas  = document.getElementById('visualizer');
+const ctx     = canvas.getContext('2d');
+const W       = canvas.width;
+const H       = canvas.height;
+const CX      = W / 2;
+const CY      = H / 2;
+const BASE_R  = 155;
+let   rafID   = null;
+let   amp     = 0;       // smoothed 0–1 amplitude
+let   phase   = 0;       // for idle animation
+
+/* ── Elements ───────────────────────────────────────────── */
+const btnRecord  = document.getElementById('btn-record');
+const btnPlay    = document.getElementById('btn-play');
+const btnPause   = document.getElementById('btn-pause');
+const btnStop    = document.getElementById('btn-stop');
+const durEl      = document.getElementById('duration');
+const statusEl   = document.getElementById('status');
+const uploadBtn  = document.getElementById('upload-btn');
+const fileInput  = document.getElementById('file-input');
+const noticeEl   = document.getElementById('upload-notice');
+
+/* ── Button state sync ──────────────────────────────────── */
+function syncUI() {
+  btnRecord.disabled = state !== S.IDLE;
+  btnPlay.disabled   = !(state === S.ARMED || state === S.PAUSED);
+  btnPause.disabled  = state !== S.RECORDING;
+  btnStop.disabled   = !(state === S.RECORDING || state === S.PAUSED);
+
+  [btnRecord, btnPlay, btnPause, btnStop].forEach(b => b.classList.remove('lit'));
+  if (state === S.ARMED)     btnRecord.classList.add('lit');
+  if (state === S.RECORDING) btnPlay.classList.add('lit');
+  if (state === S.PAUSED)    btnPause.classList.add('lit');
+
+  statusEl.className = 'status ' + state;
+  statusEl.textContent =
+    state === S.IDLE      ? '' :
+    state === S.ARMED     ? 'Armed' :
+    state === S.RECORDING ? 'Recording' :
+    state === S.PAUSED    ? 'Paused' : '';
+}
+
+/* ── Timer helpers ──────────────────────────────────────── */
+function fmtTime(s) {
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' +
+         String(s % 60).padStart(2, '0');
+}
+function startTimer()  { timerID = setInterval(() => { elapsedSec++; durEl.textContent = fmtTime(elapsedSec); }, 1000); }
+function pauseTimer()  { clearInterval(timerID); timerID = null; }
+function resetTimer()  { pauseTimer(); elapsedSec = 0; durEl.textContent = '00:00'; }
+
+/* ── Microphone ─────────────────────────────────────────── */
+async function openMic() {
+  try {
+    stream   = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize        = 256;
+    analyser.smoothingTimeConstant = 0.6;
+    audioCtx.createMediaStreamSource(stream).connect(analyser);
+    return true;
+  } catch {
+    setStatus('Mic access denied', '#d87878');
+    return false;
+  }
+}
+function closeMic() {
+  stream?.getTracks().forEach(t => t.stop());
+  audioCtx?.close();
+  stream = analyser = audioCtx = null;
+}
+
+/* ── Amplitude reading ──────────────────────────────────── */
+const freqBuf = new Uint8Array(128);
+function readAmp() {
+  if (!analyser || state !== S.RECORDING) return 0;
+  analyser.getByteFrequencyData(freqBuf);
+  let sum = 0;
+  for (let i = 0; i < freqBuf.length; i++) sum += freqBuf[i];
+  return (sum / freqBuf.length) / 128; // 0–1+
+}
+
+/* ── Canvas draw loop ───────────────────────────────────── */
+function draw() {
+  rafID = requestAnimationFrame(draw);
+  ctx.clearRect(0, 0, W, H);
+  phase += 0.012;
+
+  // Smooth amplitude
+  const target = readAmp();
+  amp += (target - amp) * 0.14;
+
+  const isActive = state !== S.IDLE;
+  if (!isActive) { drawRing(BASE_R, 0, false); return; }
+
+  const numPts  = 256;
+  const t       = Date.now() / 1000;
+  const jitter  = state === S.RECORDING ? amp : 0;
+
+  // Glow layers (recording only)
+  if (state === S.RECORDING && amp > 0.02) {
+    ctx.shadowColor = `rgba(255,140,0,${amp * 0.6})`;
+    ctx.shadowBlur  = 20 + amp * 40;
+  }
+
+  // Draw wobbly circle
+  ctx.beginPath();
+  for (let i = 0; i <= numPts; i++) {
+    const angle = (i / numPts) * Math.PI * 2;
+    const wobble =
+      Math.sin(angle * 11 + t * 14) * jitter * 14 +
+      Math.sin(angle *  7 - t * 9)  * jitter * 9  +
+      Math.sin(angle *  4 + t * 5)  * jitter * 5  +
+      // armed idle breathe
+      (state === S.ARMED ? Math.sin(phase) * 3 : 0);
+    const r = BASE_R + wobble;
+    const x = CX + Math.cos(angle) * r;
+    const y = CY + Math.sin(angle) * r;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+
+  const opacity =
+    state === S.RECORDING ? 0.35 + amp * 0.65 :
+    state === S.ARMED     ? 0.28 + Math.sin(phase) * 0.06 :
+    0.18;
+
+  ctx.strokeStyle =
+    state === S.RECORDING ? `rgba(255,140,0,${opacity})` :
+    state === S.ARMED     ? `rgba(140,165,200,${opacity})` :
+    `rgba(160,165,178,${opacity})`;
+
+  ctx.lineWidth =
+    state === S.RECORDING ? 1.5 + amp * 3 : 1.5;
+
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+function drawRing(r, opacity, _glow) {
+  ctx.beginPath();
+  ctx.arc(CX, CY, r, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(160,165,178,0.15)`;
+  ctx.lineWidth   = 1.5;
+  ctx.stroke();
+}
+
+/* ── Button handlers ────────────────────────────────────── */
+
+// RECORD — arm
+btnRecord.addEventListener('click', async () => {
+  const ok = await openMic();
+  if (!ok) return;
+  state = S.ARMED;
+  resetTimer();
+  syncUI();
+});
+
+// PLAY — start or resume
+btnPlay.addEventListener('click', () => {
+  if (state === S.ARMED) {
+    chunks   = [];
+    recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    recorder.onstop = onRecordingStop;
+    recorder.start(100);
+    state = S.RECORDING;
+    startTimer();
+  } else if (state === S.PAUSED) {
+    recorder.resume();
+    state = S.RECORDING;
+    startTimer();
+  }
+  syncUI();
+});
+
+// PAUSE
+btnPause.addEventListener('click', () => {
+  recorder.pause();
+  state = S.PAUSED;
+  pauseTimer();
+  syncUI();
+});
+
+// STOP
+btnStop.addEventListener('click', () => {
+  recorder.stop();   // triggers onstop async
+  pauseTimer();
+  state = S.IDLE;
+  syncUI();
+  closeMic();
+});
+
+function onRecordingStop() {
+  if (!chunks.length) return;
+  const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+  // Offer download (placeholder for real upload)
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `speak-${Date.now()}.webm`;
+  // Don't auto-trigger download; just hold the blob for future upload
+  console.info('Recording ready:', blob.size, 'bytes');
+}
+
+/* ── Upload from device ─────────────────────────────────── */
+uploadBtn.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  fileInput.value = '';
+
+  showNotice('Uploading\u2026', '');
+
+  // Simulated upload — replace with real fetch() call to backend
+  setTimeout(() => {
+    const ok = Math.random() > 0.15;
+    showNotice(
+      ok ? 'Upload successful' : 'Upload failed \u2014 try again',
+      ok ? 'success' : 'error',
+      3200
+    );
+  }, 1400);
+});
+
+function showNotice(msg, cls, ttl = 0) {
+  noticeEl.textContent  = msg;
+  noticeEl.className    = 'upload-notice ' + cls;
+  if (ttl) setTimeout(() => { noticeEl.textContent = '\u00a0'; noticeEl.className = 'upload-notice'; }, ttl);
+}
+
+/* ── Boot ───────────────────────────────────────────────── */
+syncUI();
+draw();
+</script>
+</body>
+</html>

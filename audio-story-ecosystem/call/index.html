@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CALL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fugaz+One&display=swap">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-a:          #eceef2;
+      --bg-b:          #d8dae1;
+      --row-bg:        rgba(158,161,170,0.20);
+      --row-shadow:    0 1px 6px rgba(0,0,0,0.07), inset 0 0 0 1px rgba(255,255,255,0.55);
+      --label:         rgba(88,90,102,0.55);
+      --num-color:     rgba(88,90,102,0.22);
+      --accent:        rgb(160,80,255);
+      --accent-bg:     rgba(160,80,255,0.09);
+      --accent-border: rgba(160,80,255,0.50);
+    }
+
+    body.dark {
+      --bg-a:          #13141a;
+      --bg-b:          #0f1014;
+      --row-bg:        rgba(255,255,255,0.04);
+      --row-shadow:    0 1px 6px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.055);
+      --label:         rgba(255,255,255,0.30);
+      --num-color:     rgba(255,255,255,0.12);
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: linear-gradient(150deg, var(--bg-a) 0%, var(--bg-b) 100%);
+      transition: background 0.3s;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      user-select: none; -webkit-user-select: none;
+    }
+
+    .app-name {
+      position: fixed;
+      top: 26px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px; font-weight: 400;
+      letter-spacing: 0.5em; text-transform: uppercase;
+      color: var(--label);
+      transition: color 0.3s;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* ── Page layout ─────────────────────────────────────────────────────── */
+    .page {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      width: 100%;
+      height: 100vh;
+      padding: 10vh 5vw 10vh 0;
+    }
+
+    /* ── Numbers strip ───────────────────────────────────────────────────── */
+    .numbers {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: flex-start;
+      align-self: stretch;
+      padding-right: 3vw;
+    }
+
+    .num-btn {
+      font-family: 'Fugaz One', sans-serif;
+      font-size: clamp(20px, 3vw, 40px);
+      color: var(--num-color);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 2px;
+      line-height: 1;
+      transition: color 0.2s;
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
+    }
+    .num-btn:hover        { color: var(--accent); opacity: 0.6; }
+    .num-btn.active       { color: var(--accent); opacity: 1; }
+    .num-btn.active:hover { opacity: 0.8; }
+
+    /* ── Tile grid ───────────────────────────────────────────────────────── */
+    .tile-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 14px;
+      width: 80vw;
+      height: 76.5vh; /* 90vh × 0.85 */
+      align-self: stretch;
+    }
+
+    .tile-card {
+      border-radius: 14px;
+      background: var(--row-bg);
+      box-shadow: var(--row-shadow);
+      transition: background 0.25s, box-shadow 0.25s;
+    }
+
+    /* ── Secondary panel (slides up from bottom) ─────────────────────────── */
+    .sub-panel {
+      position: fixed;
+      bottom: 0;
+      left: 5vw;
+      right: 5vw;
+      z-index: 20;
+      padding-bottom: 10vh;
+      padding-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      transform: translateY(100%);
+      transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+    }
+
+    .sub-panel.visible {
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .sub-card {
+      height: 13vh;
+      border-radius: 14px;
+      background: var(--accent-bg);
+      box-shadow: var(--row-shadow), 0 0 0 1.5px var(--accent-border);
+      transition: background 0.25s, box-shadow 0.25s;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-name">CALL</div>
+
+  <div class="page">
+    <div class="numbers">
+      <button class="num-btn" data-idx="0">36</button>
+      <button class="num-btn" data-idx="1">18</button>
+      <button class="num-btn" data-idx="2">9</button>
+      <button class="num-btn" data-idx="3">6</button>
+      <button class="num-btn" data-idx="4">3</button>
+    </div>
+
+    <div class="tile-grid">
+      <div class="tile-card"></div>
+      <div class="tile-card"></div>
+      <div class="tile-card"></div>
+      <div class="tile-card"></div>
+      <div class="tile-card"></div>
+      <div class="tile-card"></div>
+    </div>
+  </div>
+
+  <div class="sub-panel" id="subPanel">
+    <div class="sub-card"></div>
+    <div class="sub-card"></div>
+    <div class="sub-card"></div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  function applyTheme(t) { document.body.classList.toggle('dark', t === 'dark'); }
+  applyTheme(localStorage.getItem('theme') || 'light');
+  window.addEventListener('storage', e => { if (e.key === 'theme') applyTheme(e.newValue || 'light'); });
+
+  const numBtns  = Array.from(document.querySelectorAll('.num-btn'));
+  const subPanel = document.getElementById('subPanel');
+  let activeIdx  = null;
+
+  function toggle(i) {
+    if (activeIdx === i) {
+      // deactivate
+      numBtns[i].classList.remove('active');
+      subPanel.classList.remove('visible');
+      activeIdx = null;
+    } else {
+      // deactivate previous
+      if (activeIdx !== null) numBtns[activeIdx].classList.remove('active');
+      // activate new
+      numBtns[i].classList.add('active');
+      subPanel.classList.add('visible');
+      activeIdx = i;
+    }
+  }
+
+  numBtns.forEach((btn, i) => btn.addEventListener('click', () => toggle(i)));
+}());
+</script>
+</body>
+</html>

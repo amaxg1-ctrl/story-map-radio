@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FRAGMENT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fugaz+One&display=swap">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-a: #eceef2; --bg-b: #d8dae1;
+      --orange: rgb(255,136,0);
+      --purple: rgb(160,80,255);
+      --text-muted: rgba(88,90,102,0.55);
+      --btn-bg: rgba(158,161,170,0.26);
+      --btn-border: rgba(255,255,255,0.55);
+      --btn-inset: rgba(255,255,255,0.45);
+      --mark-base:   rgba(88,90,102,0.13);
+      --mark-fill:   rgba(255,136,0,0.22);
+      --mark-stroke: rgba(255,255,255,0.30);
+      --row-bg:     rgba(158,161,170,0.20);
+      --row-shadow: 0 1px 6px rgba(0,0,0,0.07), inset 0 0 0 1px rgba(255,255,255,0.55);
+    }
+    body.dark {
+      --bg-a: #13141a; --bg-b: #0f1014;
+      --text-muted: rgba(200,202,218,0.45);
+      --btn-bg: rgba(42,44,58,0.55);
+      --btn-border: rgba(255,255,255,0.10);
+      --btn-inset: rgba(255,255,255,0.05);
+      --mark-base:   rgba(200,202,218,0.10);
+      --mark-fill:   rgba(160,80,255,0.22);
+      --mark-stroke: rgba(255,255,255,0.22);
+      --row-bg:     rgba(255,255,255,0.04);
+      --row-shadow: 0 1px 6px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.055);
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: linear-gradient(150deg, var(--bg-a) 0%, var(--bg-b) 100%);
+      transition: background 0.3s;
+      user-select: none; -webkit-user-select: none;
+    }
+
+    @keyframes fragmentFade {
+      0%   { opacity: 1; }
+      60%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    .app-name {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 11px; font-weight: 400;
+      letter-spacing: 0.5em; text-transform: uppercase;
+      color: var(--text-muted);
+      pointer-events: none;
+      z-index: 10;
+      animation: fragmentFade 5s ease-in forwards;
+    }
+
+    .bar-label {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 11px; font-weight: 400;
+      letter-spacing: 0.5em; text-transform: uppercase;
+      color: var(--text-muted);
+      transition: color 0.3s;
+    }
+
+    /* ── Main layout ─────────────────────────────────────────────────────── */
+    .main-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .num-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .num-bar {
+      width: 326px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--row-bg);
+      box-shadow: var(--row-shadow);
+      transition: background 0.3s, box-shadow 0.3s;
+      margin: 8px 0;
+    }
+
+    .mark-svg { display: block; flex-shrink: 0; overflow: visible; }
+    .mark-base   { fill: var(--mark-base);   stroke: var(--mark-stroke); stroke-width: 1.5; paint-order: stroke; font-family: 'Fugaz One', sans-serif; }
+    .mark-accent { fill: var(--mark-fill);   stroke: var(--mark-stroke); stroke-width: 1.5; paint-order: stroke; font-family: 'Fugaz One', sans-serif; }
+
+    /* stage */
+    .stage {
+      position: relative;
+      width: min(500px, 68vmin); height: min(500px, 68vmin);
+    }
+
+    canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+    /* buttons inside the yin-yang */
+    .yy-btn {
+      position: absolute;
+      width: 48px; height: 48px; border-radius: 50%;
+      border: 1.5px solid var(--btn-border);
+      background: var(--btn-bg);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.18s, box-shadow 0.18s, border-color 0.18s;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+      outline: none; -webkit-tap-highlight-color: transparent;
+      transform: translate(-50%, -50%);
+    }
+    .yy-btn svg { width: 18px; height: 18px; pointer-events: none; }
+
+    /* yang button (top-left) — orange when active */
+    #btnYang { color: var(--orange); }
+    #btnYang.active {
+      background: rgba(255,136,0,0.18);
+      border-color: rgba(255,136,0,0.55);
+      box-shadow: 0 0 0 3px rgba(255,136,0,0.13), 0 0 20px rgba(255,136,0,0.38),
+                  0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+    }
+
+    /* disabled (other mic active) */
+    .yy-btn.disabled {
+      opacity: 0.30;
+      pointer-events: none;
+      cursor: default;
+    }
+    .yy-btn.disabled::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background:
+        linear-gradient(
+          to bottom right,
+          transparent calc(50% - 1px),
+          currentColor calc(50% - 1px),
+          currentColor calc(50% + 1px),
+          transparent calc(50% + 1px)
+        );
+      opacity: 0.6;
+    }
+
+    /* yin button (lower-right) — purple when active */
+    #btnYin { color: var(--purple); }
+    #btnYin.active {
+      background: rgba(160,80,255,0.18);
+      border-color: rgba(160,80,255,0.55);
+      box-shadow: 0 0 0 3px rgba(160,80,255,0.13), 0 0 20px rgba(160,80,255,0.44),
+                  0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="num-bar"></div>
+  <div class="bar-label">ECHO</div>
+
+  <div class="main-wrap">
+
+    <!-- Left column: 36 → 3 -->
+    <div class="num-col">
+      <svg class="mark-svg" viewBox="0 0 80 58" width="56" height="40">
+        <text x="40" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">36</text>
+      </svg>
+      <svg class="mark-svg" viewBox="0 0 80 58" width="56" height="40">
+        <text x="40" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">18</text>
+      </svg>
+      <svg class="mark-svg" viewBox="0 0 58 58" width="40" height="40">
+        <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">9</text>
+      </svg>
+      <svg class="mark-svg" viewBox="0 0 58 58" width="40" height="40">
+        <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">6</text>
+      </svg>
+      <svg class="mark-svg" viewBox="0 0 58 58" width="40" height="40">
+        <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">3</text>
+      </svg>
+    </div>
+
+    <div class="stage" id="stage">
+      <canvas id="yinYangCanvas"></canvas>
+      <div class="app-name">FRAGMENT</div>
+
+      <button class="yy-btn" id="btnYang" title="Yang input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+        </svg>
+      </button>
+
+      <button class="yy-btn" id="btnYin" title="Yin input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Right column: 3 → 36 -->
+    <div class="num-col">
+      <svg class="mark-svg" viewBox="0 0 58 58" width="40" height="40">
+        <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">3</text>
+      </svg>
+      <svg class="mark-svg" viewBox="0 0 58 58" width="40" height="40">
+        <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">6</text>
+      </svg>
+      <svg class="mark-svg" viewBox="0 0 58 58" width="40" height="40">
+        <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">9</text>
+      </svg>
+      <svg class="mark-svg" viewBox="0 0 80 58" width="56" height="40">
+        <text x="40" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">18</text>
+      </svg>
+      <svg class="mark-svg" viewBox="0 0 80 58" width="56" height="40">
+        <text x="40" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">36</text>
+      </svg>
+    </div>
+
+  </div>
+
+  <div class="bar-label">CALL</div>
+  <div class="num-bar"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Theme ──────────────────────────────────────────────────────────────────
+  function applyTheme(t) { document.body.classList.toggle('dark', t === 'dark'); }
+  applyTheme(localStorage.getItem('theme') || 'light');
+  window.addEventListener('storage', e => { if (e.key === 'theme') applyTheme(e.newValue || 'light'); });
+
+  const stage   = document.getElementById('stage');
+  const canvas  = document.getElementById('yinYangCanvas');
+  const ctx     = canvas.getContext('2d');
+  const btnYang = document.getElementById('btnYang');
+  const btnYin  = document.getElementById('btnYin');
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let yangActive = false;
+  let yinActive  = false;
+  let analyserYang = null, analyserYin = null;
+  let streamYang   = null, streamYin   = null;
+
+  // ── Organic viz constants ─────────────────────────────────────────────────
+  const N_CURVE = 128;
+  const COS_A   = new Float64Array(N_CURVE);
+  const SIN_A   = new Float64Array(N_CURVE);
+  for (let i = 0; i < N_CURVE; i++) {
+    const a = (i / N_CURVE) * Math.PI * 2;
+    COS_A[i] = Math.cos(a);
+    SIN_A[i] = Math.sin(a);
+  }
+
+  // Per-mic organic state
+  const yangViz = { smoothedRadii: null, spikeRadii: null, phase: 0, smoothAmp: 0,
+                    freqData: null, timeData: null, angleBins: null, voiceMinBin: 0, voiceMaxBin: 0 };
+  const yinViz  = { smoothedRadii: null, spikeRadii: null, phase: 0, smoothAmp: 0,
+                    freqData: null, timeData: null, angleBins: null, voiceMinBin: 0, voiceMaxBin: 0 };
+
+  // ── Canvas sizing ──────────────────────────────────────────────────────────
+  let S = 0;
+  let cx, cy, R, BASE_R;
+
+  function resize() {
+    S = stage.offsetWidth;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width  = Math.round(S * dpr);
+    canvas.height = Math.round(S * dpr);
+    canvas.style.width  = S + 'px';
+    canvas.style.height = S + 'px';
+    ctx.scale(dpr, dpr);
+
+    cx     = S / 2;
+    cy     = S / 2;
+    R      = S * 0.42;
+    BASE_R = R * 0.88; // slightly inside yin-yang boundary
+
+    if (yangViz.smoothedRadii) yangViz.smoothedRadii.fill(BASE_R);
+    if (yinViz.smoothedRadii)  yinViz.smoothedRadii.fill(BASE_R);
+
+    // After 90° CW rotation the small circles move:
+    // yang (was left) → bottom-center; yin (was right) → top-center
+    btnYang.style.left = cx + 'px';
+    btnYang.style.top  = (cy + R / 2) + 'px';
+    btnYin.style.left  = cx + 'px';
+    btnYin.style.top   = (cy - R / 2) + 'px';
+  }
+
+  // ── Yin-yang paths ─────────────────────────────────────────────────────────
+  function yangPath() {
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, Math.PI, 0, false);
+    ctx.arc(cx + R/2, cy, R/2, 0, -Math.PI, true);
+    ctx.arc(cx - R/2, cy, R/2, 0, -Math.PI, false);
+    ctx.closePath();
+  }
+
+  function yinPath() {
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI, false);
+    ctx.arc(cx - R/2, cy, R/2, Math.PI, 0, true);
+    ctx.arc(cx + R/2, cy, R/2, Math.PI, 0, false);
+    ctx.closePath();
+  }
+
+  // ── Organic visualization (SPEAK-style, clipped to half) ──────────────────
+  function setupViz(viz, analyser, audioCtx) {
+    const binHz     = audioCtx.sampleRate / analyser.fftSize;
+    viz.voiceMinBin = Math.max(1, Math.round(80 / binHz));
+    viz.voiceMaxBin = Math.min(analyser.frequencyBinCount - 1, Math.round(8000 / binHz));
+    const logMin    = Math.log(80);
+    const logMax    = Math.log(8000);
+    viz.angleBins   = new Int32Array(N_CURVE);
+    for (let i = 0; i < N_CURVE; i++) {
+      const freq = Math.exp(logMin + (i / N_CURVE) * (logMax - logMin));
+      viz.angleBins[i] = Math.max(viz.voiceMinBin, Math.min(viz.voiceMaxBin, Math.round(freq / binHz)));
+    }
+    viz.freqData      = new Uint8Array(analyser.frequencyBinCount);
+    viz.timeData      = new Uint8Array(analyser.fftSize);
+    viz.smoothedRadii = new Float32Array(N_CURVE).fill(BASE_R);
+    viz.spikeRadii    = new Float32Array(N_CURVE).fill(0);
+    viz.smoothAmp     = 0;
+    viz.phase         = 0;
+  }
+
+  function drawOrganic(analyser, viz, clipFn, color) {
+    analyser.getByteFrequencyData(viz.freqData);
+    analyser.getByteTimeDomainData(viz.timeData);
+
+    let sum = 0;
+    for (let i = 0; i < viz.timeData.length; i++) {
+      const v = (viz.timeData[i] - 128) / 128;
+      sum += v * v;
+    }
+    viz.smoothAmp = viz.smoothAmp * 0.80 + Math.sqrt(sum / viz.timeData.length) * 0.20;
+    const vol = viz.smoothAmp;
+
+    const dynBase     = BASE_R + vol * S * 0.04;
+    const MAX_DEFORM  = S * 0.085;
+    const WOBBLE_AMP  = S * 0.018;
+    const SPIKE_SCALE = S * 0.065;
+    const lo = b => Math.max(viz.voiceMinBin, b);
+    const hi = b => Math.min(viz.voiceMaxBin, b);
+
+    const finalR = new Float32Array(N_CURVE);
+    for (let i = 0; i < N_CURVE; i++) {
+      const bin = viz.angleBins[i];
+      let ampSmooth = viz.freqData[lo(bin-2)] + viz.freqData[lo(bin-1)]
+                    + viz.freqData[bin]
+                    + viz.freqData[hi(bin+1)] + viz.freqData[hi(bin+2)];
+      ampSmooth = (ampSmooth / 5) / 255;
+
+      const a = (i / N_CURVE) * Math.PI * 2;
+      const wobble = Math.sin(a * 3 + viz.phase)        * WOBBLE_AMP
+                   + Math.sin(a * 5 + viz.phase * 1.4)  * WOBBLE_AMP * 0.45
+                   + Math.sin(a * 2 + viz.phase * 0.65) * WOBBLE_AMP * 0.3;
+
+      const targetSmooth   = dynBase + ampSmooth * MAX_DEFORM + wobble;
+      viz.smoothedRadii[i] = viz.smoothedRadii[i] * 0.70 + targetSmooth * 0.30;
+
+      const rawAmp      = viz.freqData[bin] / 255;
+      const targetSpike = Math.pow(rawAmp, 1.6) * SPIKE_SCALE;
+      viz.spikeRadii[i] = viz.spikeRadii[i] * 0.44 + targetSpike * 0.56;
+
+      finalR[i] = Math.min(viz.smoothedRadii[i] + viz.spikeRadii[i], R);
+    }
+
+    ctx.save();
+    ctx.beginPath(); clipFn(); ctx.clip();
+
+    // Soft inner glow
+    if (vol > 0.015) {
+      const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, BASE_R * 1.18);
+      grd.addColorStop(0, color.replace(')', `, ${vol * 0.14})`).replace('rgb', 'rgba'));
+      grd.addColorStop(1, color.replace(')', ', 0)').replace('rgb', 'rgba'));
+      ctx.beginPath();
+      ctx.arc(cx, cy, BASE_R * 1.18, 0, Math.PI * 2);
+      ctx.fillStyle = grd;
+      ctx.fill();
+    }
+
+    // Organic blob curve
+    ctx.beginPath();
+    for (let i = 0; i < N_CURVE; i++) {
+      const j  = (i + 1) % N_CURVE;
+      const x1 = cx + finalR[i] * COS_A[i];
+      const y1 = cy + finalR[i] * SIN_A[i];
+      const x2 = cx + finalR[j] * COS_A[j];
+      const y2 = cy + finalR[j] * SIN_A[j];
+      if (i === 0) {
+        const k = N_CURVE - 1;
+        ctx.moveTo((cx + finalR[k] * COS_A[k] + x1) / 2,
+                   (cy + finalR[k] * SIN_A[k] + y1) / 2);
+      }
+      ctx.quadraticCurveTo(x1, y1, (x1 + x2) / 2, (y1 + y2) / 2);
+    }
+    ctx.closePath();
+
+    const alpha = 0.28 + vol * 0.62;
+    ctx.strokeStyle = color.replace(')', `, ${alpha})`).replace('rgb', 'rgba');
+    ctx.lineWidth   = 1.5 + vol * 2.5;
+    ctx.shadowBlur  = 5 + vol * 18;
+    ctx.shadowColor = color.replace(')', ', 0.55)').replace('rgb', 'rgba');
+    ctx.stroke();
+    ctx.shadowBlur  = 0;
+
+    ctx.restore();
+    viz.phase += 0.018;
+  }
+
+  // ── Main draw ──────────────────────────────────────────────────────────────
+  function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, S, S);
+
+    // Rotate entire yin-yang 90° CW around center
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(Math.PI / 2);
+    ctx.translate(-cx, -cy);
+
+    // Outer ring — hidden when a mic is active
+    if (!yangActive && !yinActive) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.strokeStyle = document.body.classList.contains('dark')
+        ? 'rgba(255,255,255,0.10)'
+        : 'rgba(88,90,102,0.14)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    // Yin fill (purple)
+    yinPath();
+    ctx.fillStyle = 'rgba(160,80,255,0.12)';
+    ctx.fill();
+
+    // Yang fill (orange)
+    yangPath();
+    ctx.fillStyle = 'rgba(255,136,0,0.12)';
+    ctx.fill();
+
+    // Opposite dots
+    const dotR = R / 8;
+    ctx.beginPath();
+    ctx.arc(cx + R / 2, cy, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,136,0,0.32)';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx - R / 2, cy, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(160,80,255,0.32)';
+    ctx.fill();
+
+    // Organic visualizations clipped to each half
+    if (yangActive && analyserYang) drawOrganic(analyserYang, yangViz, yangPath, 'rgb(255,136,0)');
+    if (yinActive  && analyserYin)  drawOrganic(analyserYin,  yinViz,  yinPath,  'rgb(160,80,255)');
+
+    ctx.restore();
+
+    requestAnimationFrame(draw);
+  }
+
+  // ── Microphone setup ───────────────────────────────────────────────────────
+  async function startMic(forYang) {
+    try {
+      const stream   = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const ac       = new (window.AudioContext || window.webkitAudioContext)();
+      const src      = ac.createMediaStreamSource(stream);
+      const analyser = ac.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.75;
+      src.connect(analyser);
+
+      if (forYang) {
+        if (streamYang) streamYang.getTracks().forEach(t => t.stop());
+        streamYang   = stream;
+        analyserYang = analyser;
+        setupViz(yangViz, analyser, ac);
+        yangActive   = true;
+        btnYang.classList.add('active');
+      } else {
+        if (streamYin) streamYin.getTracks().forEach(t => t.stop());
+        streamYin   = stream;
+        analyserYin = analyser;
+        setupViz(yinViz, analyser, ac);
+        yinActive   = true;
+        btnYin.classList.add('active');
+      }
+    } catch (e) {
+      console.warn('Mic access denied', e);
+    }
+  }
+
+  function stopMic(forYang) {
+    if (forYang) {
+      if (streamYang) { streamYang.getTracks().forEach(t => t.stop()); streamYang = null; }
+      analyserYang = null;
+      yangActive   = false;
+      btnYang.classList.remove('active');
+      yangViz.smoothedRadii = null; yangViz.spikeRadii = null;
+      yangViz.freqData = null; yangViz.timeData = null;
+    } else {
+      if (streamYin) { streamYin.getTracks().forEach(t => t.stop()); streamYin = null; }
+      analyserYin = null;
+      yinActive   = false;
+      btnYin.classList.remove('active');
+      yinViz.smoothedRadii = null; yinViz.spikeRadii = null;
+      yinViz.freqData = null; yinViz.timeData = null;
+    }
+  }
+
+  function syncButtons() {
+    btnYang.classList.toggle('disabled', yinActive && !yangActive);
+    btnYin.classList.toggle('disabled',  yangActive && !yinActive);
+  }
+
+  btnYang.addEventListener('click', async () => {
+    if (yangActive) { stopMic(true); } else { await startMic(true); }
+    syncButtons();
+  });
+  btnYin.addEventListener('click', async () => {
+    if (yinActive) { stopMic(false); } else { await startMic(false); }
+    syncButtons();
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  window.addEventListener('resize', resize);
+  resize();
+  draw();
+
+}());
+</script>
+</body>
+</html>

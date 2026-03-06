@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OUT</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-a:       #eceef2;
+      --bg-b:       #d8dae1;
+      --row-bg:     rgba(158,161,170,0.20);
+      --row-shadow: 0 1px 6px rgba(0,0,0,0.07), inset 0 0 0 1px rgba(255,255,255,0.55);
+      --label:      rgba(88,90,102,0.55);
+    }
+
+    body.dark {
+      --bg-a:       #13141a;
+      --bg-b:       #0f1014;
+      --row-bg:     rgba(255,255,255,0.04);
+      --row-shadow: 0 1px 6px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.055);
+      --label:      rgba(255,255,255,0.30);
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: linear-gradient(150deg, var(--bg-a) 0%, var(--bg-b) 100%);
+      transition: background 0.3s;
+    }
+
+    .page {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    .app-super {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 8px;
+      font-weight: 400;
+      letter-spacing: 0.45em;
+      text-transform: uppercase;
+      color: var(--label);
+      opacity: 0.6;
+      margin-bottom: 5px;
+      transition: color 0.3s;
+    }
+
+    .app-name {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.5em;
+      text-transform: uppercase;
+      color: var(--label);
+      margin-bottom: 18px;
+      transition: color 0.3s;
+    }
+
+    .reel {
+      width: 80vw;
+      height: 55vh;
+      overflow-y: scroll;
+      overflow-x: hidden;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .reel::-webkit-scrollbar { display: none; }
+
+    .reel-row {
+      width: 100%;
+      border-radius: 10px;
+      background: var(--row-bg);
+      box-shadow: var(--row-shadow);
+      transform-origin: center center;
+      will-change: transform;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <style>
+    .app-nav {
+      position: fixed; display: flex; align-items: center; gap: 2px;
+      cursor: pointer; z-index: 300; color: var(--label);
+      opacity: 0.42; transition: opacity 0.2s;
+      padding: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 9px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .app-nav:hover { opacity: 1; }
+    .app-nav svg { flex-shrink: 0; }
+    .app-nav-top-left { top: 10%; left: 10%; flex-direction: column; }
+    .app-nav-top-left span { writing-mode: vertical-rl; transform: rotate(180deg); }
+
+    /* ── Exit to SPEAK ──────────────────────────────────────────────────── */
+    .exit-up .page {
+      transform: translateY(-60px) scale(0.95);
+      opacity: 0;
+      transition: transform 0.55s cubic-bezier(0.4,0,0.8,1), opacity 0.4s ease-in 0.05s;
+    }
+    .exit-up .app-nav {
+      opacity: 0;
+      transition: opacity 0.2s ease-out;
+    }
+  </style>
+
+  <div class="app-nav app-nav-top-left" id="navToSpeak">
+    <svg viewBox="0 0 10 10" width="11" height="11" fill="currentColor">
+      <path d="M5,2 L1,6 L9,6 Z"/>
+    </svg>
+    <span>SPEAK</span>
+  </div>
+
+  <div class="page">
+    <div class="app-super">SPEAK</div>
+    <div class="app-name">OUT</div>
+    <div class="reel" id="reel"></div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  function applyTheme(t) { document.body.classList.toggle('dark', t === 'dark'); }
+  applyTheme(localStorage.getItem('theme') || 'light');
+  window.addEventListener('storage', e => { if (e.key === 'theme') applyTheme(e.newValue || 'light'); });
+
+  const TOTAL   = 30;
+  const VISIBLE = 7;
+  const GAP     = 5; // px between rows
+
+  const reel = document.getElementById('reel');
+
+  /* ── Row height based on container ────────────────────────────────── */
+  function rowH(ch) { return (ch - (VISIBLE - 1) * GAP) / VISIBLE; }
+
+  function setRowHeights() {
+    const ch = reel.clientHeight;
+    const rh = rowH(ch);
+    Array.from(reel.children).forEach((row, i) => {
+      row.style.height       = rh + 'px';
+      row.style.marginBottom = i < TOTAL - 1 ? GAP + 'px' : '0';
+    });
+  }
+
+  /* ── Build rows ─────────────────────────────────────────────────────── */
+  for (let i = 0; i < TOTAL; i++) {
+    const row = document.createElement('div');
+    row.className = 'reel-row';
+    reel.appendChild(row);
+  }
+  setRowHeights();
+
+  const rows = Array.from(reel.children);
+
+  /* ── Scale calculation ──────────────────────────────────────────────
+     Row 1 (distFromEdge = rh/2)       → 0.70  (30% taper)
+     Row 2 (distFromEdge = 1.5 * rh)   → 0.85  (15% taper)
+     Row 3+ (distFromEdge ≥ 2.5 * rh)  → 1.00  (full width)
+  ─────────────────────────────────────────────────────────────────── */
+  function getScale(centerInReel, ch) {
+    const rh   = rowH(ch);
+    const dist = Math.min(centerInReel, ch - centerInReel);
+    const d    = dist - rh / 2; // shift: first-visible row → d=0 → scale=0.70
+
+    if (d <= 0)      return 0.70;
+    if (d >= 2 * rh) return 1.00;
+    if (d >= rh)     return 0.85 + 0.15 * ((d - rh) / rh);
+    return 0.70 + 0.15 * (d / rh);
+  }
+
+  /* ── Update on scroll ──────────────────────────────────────────────── */
+  function updateScales() {
+    const reelRect = reel.getBoundingClientRect();
+    const ch = reelRect.height;
+    rows.forEach(row => {
+      const r      = row.getBoundingClientRect();
+      const center = r.top + r.height / 2 - reelRect.top;
+      row.style.transform = `scaleX(${getScale(center, ch).toFixed(4)})`;
+    });
+  }
+
+  let ticking = false;
+  reel.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(() => { updateScales(); ticking = false; });
+      ticking = true;
+    }
+  });
+
+  window.addEventListener('resize', () => { setRowHeights(); updateScales(); });
+
+  updateScales();
+
+  /* ── Navigation ─────────────────────────────────────────────────────── */
+  function navigateToSpeak() {
+    if (document.body.classList.contains('exit-up')) return;
+    sessionStorage.setItem('transition', 'fromOut');
+    document.body.classList.add('exit-up');
+    setTimeout(() => { window.location.href = '../speak/'; }, 600);
+  }
+
+  function runEntryFromSpeak() {
+    const page = document.querySelector('.page');
+    const nav  = document.querySelector('.app-nav');
+    const ease = 'cubic-bezier(0.4,0,0.2,1)';
+
+    page.style.transition = 'none';
+    page.style.transform  = 'translateY(60px)';
+    page.style.opacity    = '0';
+    nav.style.transition  = 'none';
+    nav.style.opacity     = '0';
+
+    document.body.getBoundingClientRect();
+
+    requestAnimationFrame(() => { requestAnimationFrame(() => {
+      page.style.transition = `transform 0.65s ${ease}, opacity 0.45s ease-out`;
+      page.style.transform  = '';
+      page.style.opacity    = '';
+      nav.style.transition  = 'opacity 0.4s ease-out 0.3s';
+      nav.style.opacity     = '';
+      setTimeout(() => { page.style.cssText = ''; nav.style.cssText = ''; }, 900);
+    }); });
+  }
+
+  const navEl = document.getElementById('navToSpeak');
+  navEl.addEventListener('click', navigateToSpeak);
+  (function () {
+    let ty = 0;
+    navEl.addEventListener('touchstart', e => { ty = e.touches[0].clientY; }, { passive: true });
+    navEl.addEventListener('touchend', e => {
+      if (ty - e.changedTouches[0].clientY > 30) navigateToSpeak();
+    }, { passive: true });
+  }());
+
+  const _tr = sessionStorage.getItem('transition');
+  if (_tr === 'fromSpeak') { sessionStorage.removeItem('transition'); requestAnimationFrame(runEntryFromSpeak); }
+
+}());
+</script>
+</body>
+</html>

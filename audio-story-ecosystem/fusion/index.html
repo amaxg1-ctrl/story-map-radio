@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FUSION</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fugaz+One&display=swap">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-a: #eceef2; --bg-b: #d8dae1;
+      --orange: rgb(255,136,0);
+      --purple: rgb(160,80,255);
+      --text-muted: rgba(88,90,102,0.55);
+      --btn-bg: rgba(158,161,170,0.26);
+      --btn-border: rgba(255,255,255,0.55);
+      --btn-inset: rgba(255,255,255,0.45);
+      --mark-base:   rgba(88,90,102,0.13);
+      --mark-fill:   rgba(255,136,0,0.22);
+      --mark-stroke: rgba(255,255,255,0.30);
+      --row-bg:     rgba(158,161,170,0.20);
+      --row-shadow: 0 1px 6px rgba(0,0,0,0.07), inset 0 0 0 1px rgba(255,255,255,0.55);
+    }
+    body.dark {
+      --bg-a: #13141a; --bg-b: #0f1014;
+      --text-muted: rgba(200,202,218,0.45);
+      --btn-bg: rgba(42,44,58,0.55);
+      --btn-border: rgba(255,255,255,0.10);
+      --btn-inset: rgba(255,255,255,0.05);
+      --mark-base:   rgba(200,202,218,0.10);
+      --mark-fill:   rgba(160,80,255,0.22);
+      --mark-stroke: rgba(255,255,255,0.22);
+      --row-bg:     rgba(255,255,255,0.04);
+      --row-shadow: 0 1px 6px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.055);
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: linear-gradient(150deg, var(--bg-a) 0%, var(--bg-b) 100%);
+      transition: background 0.3s;
+      user-select: none; -webkit-user-select: none;
+    }
+
+    .app-name {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 11px; font-weight: 400;
+      letter-spacing: 0.5em; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 4px;
+      transition: color 0.3s;
+    }
+
+    /* ── Number rows ──────────────────────────────────────────────────────── */
+    .num-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 8px 0;
+    }
+
+    .num-bar {
+      width: 326px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--row-bg);
+      box-shadow: var(--row-shadow);
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+
+    .mark-svg { display: block; flex-shrink: 0; overflow: visible; }
+    .mark-base   { fill: var(--mark-base);   stroke: var(--mark-stroke); stroke-width: 1.5; paint-order: stroke; font-family: 'Fugaz One', sans-serif; }
+    .mark-accent { fill: var(--mark-fill);   stroke: var(--mark-stroke); stroke-width: 1.5; paint-order: stroke; font-family: 'Fugaz One', sans-serif; }
+
+    /* stage */
+    .stage {
+      position: relative;
+      width: min(500px, 68vmin); height: min(500px, 68vmin);
+    }
+
+    canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+    /* buttons inside the yin-yang */
+    .yy-btn {
+      position: absolute;
+      width: 48px; height: 48px; border-radius: 50%;
+      border: 1.5px solid var(--btn-border);
+      background: var(--btn-bg);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.18s, box-shadow 0.18s, border-color 0.18s;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+      outline: none; -webkit-tap-highlight-color: transparent;
+      transform: translate(-50%, -50%);
+    }
+    .yy-btn svg { width: 18px; height: 18px; pointer-events: none; }
+
+    /* yang button (top-left) — orange when active */
+    #btnYang { color: var(--orange); }
+    #btnYang.active {
+      background: rgba(255,136,0,0.18);
+      border-color: rgba(255,136,0,0.55);
+      box-shadow: 0 0 0 3px rgba(255,136,0,0.13), 0 0 20px rgba(255,136,0,0.38),
+                  0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+    }
+
+    /* disabled (other mic active) */
+    .yy-btn.disabled {
+      opacity: 0.30;
+      pointer-events: none;
+      cursor: default;
+    }
+    .yy-btn.disabled::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background:
+        linear-gradient(
+          to bottom right,
+          transparent calc(50% - 1px),
+          currentColor calc(50% - 1px),
+          currentColor calc(50% + 1px),
+          transparent calc(50% + 1px)
+        );
+      opacity: 0.6;
+    }
+
+    /* yin button (lower-right) — purple when active */
+    #btnYin { color: var(--purple); }
+    #btnYin.active {
+      background: rgba(160,80,255,0.18);
+      border-color: rgba(160,80,255,0.55);
+      box-shadow: 0 0 0 3px rgba(160,80,255,0.13), 0 0 20px rgba(160,80,255,0.44),
+                  0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-name">FUSION</div>
+
+  <div class="num-bar"></div>
+
+  <!-- Top row: 36 → 3 -->
+  <div class="num-row">
+    <svg class="mark-svg" viewBox="0 0 80 58" width="64" height="46">
+      <text x="40" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">36</text>
+    </svg>
+    <svg class="mark-svg" viewBox="0 0 80 58" width="64" height="46">
+      <text x="40" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">18</text>
+    </svg>
+    <svg class="mark-svg" viewBox="0 0 58 58" width="46" height="46">
+      <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">9</text>
+    </svg>
+    <svg class="mark-svg" viewBox="0 0 58 58" width="46" height="46">
+      <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">6</text>
+    </svg>
+    <svg class="mark-svg" viewBox="0 0 58 58" width="46" height="46">
+      <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">3</text>
+    </svg>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="yinYangCanvas"></canvas>
+
+    <!-- Yang button: upper-left quadrant of the circle -->
+    <button class="yy-btn" id="btnYang" title="Yang input">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+      </svg>
+    </button>
+
+    <!-- Yin button: lower-right quadrant of the circle -->
+    <button class="yy-btn" id="btnYin" title="Yin input">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Bottom row: 3 → 36 -->
+  <div class="num-row">
+    <svg class="mark-svg" viewBox="0 0 58 58" width="46" height="46">
+      <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">3</text>
+    </svg>
+    <svg class="mark-svg" viewBox="0 0 58 58" width="46" height="46">
+      <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">6</text>
+    </svg>
+    <svg class="mark-svg" viewBox="0 0 58 58" width="46" height="46">
+      <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">9</text>
+    </svg>
+    <svg class="mark-svg" viewBox="0 0 80 58" width="64" height="46">
+      <text x="40" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">18</text>
+    </svg>
+    <svg class="mark-svg" viewBox="0 0 80 58" width="64" height="46">
+      <text x="40" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">36</text>
+    </svg>
+  </div>
+
+  <div class="num-bar"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Theme ──────────────────────────────────────────────────────────────────
+  function applyTheme(t) { document.body.classList.toggle('dark', t === 'dark'); }
+  applyTheme(localStorage.getItem('theme') || 'light');
+  window.addEventListener('storage', e => { if (e.key === 'theme') applyTheme(e.newValue || 'light'); });
+
+  const stage      = document.getElementById('stage');
+  const canvas     = document.getElementById('yinYangCanvas');
+  const ctx        = canvas.getContext('2d');
+  const btnYang    = document.getElementById('btnYang');
+  const btnYin     = document.getElementById('btnYin');
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let yangActive = false;
+  let yinActive  = false;
+  let analyserYang = null, analyserYin = null;
+  let streamYang   = null, streamYin   = null;
+  let rafId = null;
+
+  // ── Canvas sizing ──────────────────────────────────────────────────────────
+  let S = 0; // stage size in px
+  let cx, cy, R; // circle center and radius
+
+  function resize() {
+    S  = stage.offsetWidth;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width  = Math.round(S * dpr);
+    canvas.height = Math.round(S * dpr);
+    canvas.style.width  = S + 'px';
+    canvas.style.height = S + 'px';
+    ctx.scale(dpr, dpr);
+
+    cx = S / 2;
+    cy = S / 2;
+    R  = S * 0.42;
+
+    // Position buttons at the centers of the small yin/yang circles
+    // Yang small circle: center at (cx - R/2, cy)
+    // Yin small circle:  center at (cx + R/2, cy)
+    btnYang.style.left = (cx - R / 2) + 'px';
+    btnYang.style.top  = cy + 'px';
+    btnYin.style.left  = (cx + R / 2) + 'px';
+    btnYin.style.top   = cy + 'px';
+  }
+
+  // ── Yin-yang paths in screen space ─────────────────────────────────────────
+  // Yang = top half of big circle + top half of left small circle (bulge left)
+  //        – bottom half of right small circle (yin bite from right)
+  // Small circles each have radius R/2, centered at (cx±R/2, cy)
+
+  function yangPath() {
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, Math.PI, 0, false);              // top half: left→right going over top
+    ctx.arc(cx + R/2, cy, R/2, 0, -Math.PI, true);     // bottom half of right small circle (yin bite)
+    ctx.arc(cx - R/2, cy, R/2, 0, -Math.PI, false);    // top half of left small circle (yang bulge)
+    ctx.closePath();
+  }
+
+  function yinPath() {
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI, false);              // bottom half: right→left going under bottom
+    ctx.arc(cx - R/2, cy, R/2, Math.PI, 0, true);      // top half of left small circle (yang bite from left)
+    ctx.arc(cx + R/2, cy, R/2, Math.PI, 0, false);     // bottom half of right small circle (yin bulge)
+    ctx.closePath();
+  }
+
+  // ── Audio bars (radial, around the ring) ──────────────────────────────────
+  function drawBars(analyser, r, color, clipFn) {
+    if (!analyser) return;
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(data);
+
+    const bars = 80;
+    ctx.save();
+    ctx.beginPath();
+    clipFn();
+    ctx.clip();
+
+    for (let i = 0; i < bars; i++) {
+      const angle = (i / bars) * Math.PI * 2 - Math.PI / 2;
+      const v     = data[Math.floor(i / bars * data.length)] / 255;
+      const inner = r + 4;
+      const outer = r + 4 + v * r * 0.55;
+
+      ctx.beginPath();
+      ctx.moveTo(cx + inner * Math.cos(angle), cy + inner * Math.sin(angle));
+      ctx.lineTo(cx + outer * Math.cos(angle), cy + outer * Math.sin(angle));
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = (Math.PI * 2 * r / bars) * 0.62;
+      ctx.lineCap     = 'round';
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  // Pulsing ring when active
+  function drawPulse(color, alpha) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, R + 6 + Math.sin(Date.now() / 300) * 4, 0, Math.PI * 2);
+    ctx.strokeStyle = color.replace(')', `, ${alpha})`).replace('rgb', 'rgba');
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── Main draw ──────────────────────────────────────────────────────────────
+  function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, S, S);
+
+    // Outer ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.strokeStyle = document.body.classList.contains('dark')
+      ? 'rgba(255,255,255,0.10)'
+      : 'rgba(88,90,102,0.14)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Yin fill (purple, bottom)
+    yinPath();
+    ctx.fillStyle = 'rgba(160,80,255,0.12)';
+    ctx.fill();
+
+    // Yang fill (orange, top) — drawn on top of yin
+    yangPath();
+    ctx.fillStyle = 'rgba(255,136,0,0.12)';
+    ctx.fill();
+
+    // Opposite dots
+    const dotR = R / 8;
+    // Orange dot in yin territory: right side, center of right small circle
+    ctx.beginPath();
+    ctx.arc(cx + R / 2, cy, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,136,0,0.32)';
+    ctx.fill();
+    // Purple dot in yang territory: left side, center of left small circle
+    ctx.beginPath();
+    ctx.arc(cx - R / 2, cy, dotR, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(160,80,255,0.32)';
+    ctx.fill();
+
+    // Audio visualizations (clipped to respective half)
+    if (yangActive && analyserYang) {
+      drawBars(analyserYang, R, 'rgba(255,136,0,0.72)', yangPath);
+      drawPulse('rgb(255,136,0)', 0.28);
+    }
+    if (yinActive && analyserYin) {
+      drawBars(analyserYin, R, 'rgba(160,80,255,0.72)', yinPath);
+      drawPulse('rgb(160,80,255)', 0.28);
+    }
+
+    rafId = requestAnimationFrame(draw);
+  }
+
+  // ── Microphone setup ───────────────────────────────────────────────────────
+  async function startMic(forYang) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const ac     = new (window.AudioContext || window.webkitAudioContext)();
+      const src    = ac.createMediaStreamSource(stream);
+      const analyser = ac.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.75;
+      src.connect(analyser);
+
+      if (forYang) {
+        if (streamYang) streamYang.getTracks().forEach(t => t.stop());
+        streamYang   = stream;
+        analyserYang = analyser;
+        yangActive   = true;
+        btnYang.classList.add('active');
+      } else {
+        if (streamYin) streamYin.getTracks().forEach(t => t.stop());
+        streamYin   = stream;
+        analyserYin = analyser;
+        yinActive   = true;
+        btnYin.classList.add('active');
+      }
+    } catch (e) {
+      console.warn('Mic access denied', e);
+    }
+  }
+
+  function stopMic(forYang) {
+    if (forYang) {
+      if (streamYang) { streamYang.getTracks().forEach(t => t.stop()); streamYang = null; }
+      analyserYang = null;
+      yangActive   = false;
+      btnYang.classList.remove('active');
+    } else {
+      if (streamYin) { streamYin.getTracks().forEach(t => t.stop()); streamYin = null; }
+      analyserYin = null;
+      yinActive   = false;
+      btnYin.classList.remove('active');
+    }
+  }
+
+  function syncButtons() {
+    btnYang.classList.toggle('disabled', yinActive && !yangActive);
+    btnYin.classList.toggle('disabled',  yangActive && !yinActive);
+  }
+
+  btnYang.addEventListener('click', async () => {
+    if (yangActive) { stopMic(true); } else { await startMic(true); }
+    syncButtons();
+  });
+  btnYin.addEventListener('click', async () => {
+    if (yinActive) { stopMic(false); } else { await startMic(false); }
+    syncButtons();
+  });
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  window.addEventListener('resize', () => { resize(); });
+  resize();
+  draw();
+
+}());
+</script>
+</body>
+</html>

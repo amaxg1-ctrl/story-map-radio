@@ -1,0 +1,17 @@
+# Ignore everything by default
+*
+
+# Un-ignore project files
+!.gitignore
+!CLAUDE.md
+!PARKING_LOT.md
+!audio-story-ecosystem/
+!audio-story-ecosystem/**
+
+# Common dev artifacts inside the project to still ignore
+audio-story-ecosystem/node_modules/
+audio-story-ecosystem/**/node_modules/
+audio-story-ecosystem/.expo/
+audio-story-ecosystem/**/.expo/
+audio-story-ecosystem/*.log
+audio-story-ecosystem/**/*.log

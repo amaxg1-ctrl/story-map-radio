@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Story Ecosystem</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Theme tokens ───────────────────────────────────────────────────── */
+    :root {
+      --bg-a:        #eceef2;
+      --bg-b:        #d8dae1;
+      --card-bg:     rgba(158,161,170,0.20);
+      --card-border: rgba(255,255,255,0.60);
+      --card-shadow: 0 2px 8px rgba(0,0,0,0.10), 0 8px 32px rgba(0,0,0,0.08),
+                     inset 0 0 0 1px rgba(255,255,255,0.55);
+      --card-shadow-hover: 0 1px 4px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06),
+                           inset 0 0 0 1px rgba(255,255,255,0.65);
+      --circle-border: rgba(88,90,102,0.22);
+      --label-color:   rgba(88,90,102,0.80);
+      --title-color:   rgba(88,90,102,0.38);
+      --glint:         rgba(255,136,0,0.90);
+    }
+
+    body.dark {
+      --bg-a:        #13141a;
+      --bg-b:        #0f1014;
+      --card-bg:     #13141a;
+      --card-border: rgba(255,255,255,0.055);
+      --card-shadow: 0 2px 8px rgba(0,0,0,0.55), 0 8px 32px rgba(0,0,0,0.38),
+                     inset 0 0 0 1px rgba(255,255,255,0.055);
+      --card-shadow-hover: 0 1px 5px rgba(0,0,0,0.5), 0 4px 18px rgba(0,0,0,0.32),
+                           inset 0 0 0 1px rgba(255,255,255,0.07);
+      --circle-border: rgba(255,255,255,0.18);
+      --label-color:   rgba(255,255,255,0.72);
+      --title-color:   rgba(255,255,255,0.28);
+      --glint:         rgba(160,80,255,0.90);
+    }
+
+    html, body {
+      min-height: 100vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      transition: background 0.3s;
+    }
+
+    body {
+      background: linear-gradient(150deg, var(--bg-a) 0%, var(--bg-b) 100%);
+    }
+
+    /* ── Page layout ────────────────────────────────────────────────────── */
+    .page {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 72px 32px 200px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    .page-title {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.36em;
+      text-transform: uppercase;
+      color: var(--title-color);
+      margin-bottom: 36px;
+      transition: color 0.3s;
+    }
+
+    /* ── Card grid ──────────────────────────────────────────────────────── */
+    .grid {
+      display: grid;
+      /* col4 is an empty 30px spacer to push ECHO/FRAGMENT/CALL right of LISTEN */
+      grid-template-columns: 320px 320px 320px 30px 320px 320px;
+      grid-template-rows: 440px 440px 440px;
+      gap: 30px;
+      position: relative;
+    }
+
+
+    /* ── Card tile ──────────────────────────────────────────────────────── */
+    .tile {
+      width: 320px;
+      height: 440px;
+      border-radius: 18px;
+      overflow: hidden;
+      cursor: pointer;
+      background: var(--card-bg);
+      box-shadow: var(--card-shadow);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.3s;
+      -webkit-tap-highlight-color: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tile:hover {
+      transform: scale(0.98);
+      box-shadow: var(--card-shadow-hover);
+    }
+    .tile-aloud:hover { transform: scale(0.98) translateX(-5%); }
+    .tile-along:hover { transform: scale(0.98) translateX(5%); }
+    .tile-out:hover   { transform: scale(0.98) translateX(-5%); }
+    .tile-again:hover { transform: scale(0.98) translateX(5%); }
+    .tile-echo:hover  { transform: scale(0.98) translateX(-5%); }
+    .tile-call:hover  { transform: scale(0.98) translateX(-5%); }
+
+    /* ── SPEAK & LISTEN & FRAGMENT — tinted + 5% larger ──────────────────── */
+    .tile-speak,
+    .tile-listen,
+    .tile-fragment {
+      background: rgba(200, 130, 55, 0.13);
+    }
+
+    .tile-speak  { transform: scale(1.05) translateX(-5%); }
+    .tile-listen { transform: scale(1.05) translateX(5%); }
+    .tile-fragment { transform: scale(1.05) translateX(-5%); }
+
+    .tile-speak:hover  {
+      transform: scale(1.029) translateX(-5%);
+      box-shadow: var(--card-shadow-hover);
+    }
+
+    .tile-listen:hover {
+      transform: scale(1.029) translateX(5%);
+      box-shadow: var(--card-shadow-hover);
+    }
+
+    .tile-fragment:hover {
+      transform: scale(1.029) translateX(-5%);
+      box-shadow: var(--card-shadow-hover);
+    }
+
+    body.dark .tile-speak,
+    body.dark .tile-listen,
+    body.dark .tile-fragment {
+      background: rgb(19, 12, 28);
+    }
+
+    /* ── Connector lines ─────────────────────────────────────────────────── */
+    /* gap=30px; row2 center=690px
+       SPEAK/LISTEN: col2 end=670, gap center=685px
+       LISTEN/FRAGMENT: col3 end=1020, gap(30)+spacer(30)+gap(30)=90 total,
+                      col5 start=1110, center=(1020+1110)/2=1065px */
+    .speak-listen-connector,
+    .listen-fragment-connector {
+      position: absolute;
+      width: 30px;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.10);
+      top: 690px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .speak-listen-connector { left: 685px; }
+    .listen-fragment-connector { left: 1065px; }
+
+    /* ── Circle ──────────────────────────────────────────────────────────── */
+    .card-circle {
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      border: 1.5px solid var(--circle-border);
+      transition: border-color 0.3s;
+    }
+
+    /* Rotating glint ring */
+    .card-circle::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        transparent 0%,
+        transparent 55%,
+        var(--glint) 82%,
+        rgba(255,255,255,0.85) 96%,
+        var(--glint) 97.5%,
+        transparent 100%
+      );
+      mask:         radial-gradient(transparent 87.5px, black 89px, black 91px, transparent 92.5px);
+      -webkit-mask: radial-gradient(transparent 87.5px, black 89px, black 91px, transparent 92.5px);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      pointer-events: none;
+    }
+
+    .tile:hover .card-circle::after {
+      opacity: 1;
+      animation: ring-glint 3.4s linear infinite;
+    }
+
+    @keyframes ring-glint {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    /* ── Spread label ────────────────────────────────────────────────────── */
+    .card-label {
+      position: relative;
+      display: flex;
+      justify-content: space-evenly;
+      align-items: center;
+      width: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      color: var(--label-color);
+      transition: color 0.3s;
+    }
+
+    .card-label span { display: block; }
+
+    /* ── Card supertitle (ALOUD/ALONG) ──────────────────────────────────── */
+    .card-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .card-super {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 7px;
+      font-weight: 400;
+      letter-spacing: 0.42em;
+      text-transform: uppercase;
+      color: var(--label-color);
+      opacity: 0.55;
+      transition: color 0.3s;
+    }
+
+    /* grid positions */
+    .tile-trace  { grid-row: 2; grid-column: 1; }
+    .tile-aloud  { grid-row: 1; grid-column: 2; transform: translateX(-5%); }
+    .tile-along  { grid-row: 1; grid-column: 3; transform: translateX(5%); }
+    .tile-speak  { grid-row: 2; grid-column: 2; }
+    .tile-listen { grid-row: 2; grid-column: 3; }
+    .tile-out    { grid-row: 3; grid-column: 2; transform: translateX(-5%); }
+    .tile-again  { grid-row: 3; grid-column: 3; transform: translateX(5%); }
+    .tile-echo   { grid-row: 1; grid-column: 5; transform: translateX(-5%); }
+    .tile-fragment { grid-row: 2; grid-column: 5; }
+    .tile-call   { grid-row: 3; grid-column: 5; transform: translateX(-5%); }
+    .tile-region { grid-row: 2; grid-column: 6; }
+
+    /* ── Inactive tiles (no app yet) ───────────────────────────────────── */
+    .tile-inactive {
+      cursor: default;
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    /* ── Zoom overlay ───────────────────────────────────────────────────── */
+    #zoomOverlay {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 12px 60px rgba(0,0,0,0.6);
+    }
+
+    #zoomOverlay iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="page">
+
+    <div class="page-title">Public Stories</div>
+
+    <div class="grid">
+
+      <div class="tile tile-trace" data-src="./trace/">
+        <div class="card-circle"></div>
+        <div class="card-label"><span>T</span><span>R</span><span>A</span><span>C</span><span>E</span></div>
+      </div>
+
+      <div class="tile tile-aloud"  data-src="./aloud/">
+        <div class="card-circle"></div>
+        <div class="card-label"><span>A</span><span>L</span><span>O</span><span>U</span><span>D</span></div>
+      </div>
+
+      <div class="tile tile-along"  data-src="./along/">
+        <div class="card-circle"></div>
+        <div class="card-label"><span>A</span><span>L</span><span>O</span><span>N</span><span>G</span></div>
+      </div>
+
+      <div class="tile tile-echo" data-src="./echo/">
+        <div class="card-circle"></div>
+        <div class="card-label"><span>E</span><span>C</span><span>H</span><span>O</span></div>
+      </div>
+
+      <div class="tile tile-speak"  data-src="./speak/">
+        <div class="card-circle"></div>
+        <div class="card-label"><span>S</span><span>P</span><span>E</span><span>A</span><span>K</span></div>
+      </div>
+
+      <div class="tile tile-listen" data-src="./listen/">
+        <div class="card-circle"></div>
+        <div class="card-label"><span>L</span><span>I</span><span>S</span><span>T</span><span>E</span><span>N</span></div>
+      </div>
+
+      <div class="tile tile-fragment" data-src="./fragment/">
+        <div class="card-circle"></div>
+        <div class="card-label"><span>F</span><span>R</span><span>A</span><span>G</span><span>M</span><span>E</span><span>N</span><span>T</span></div>
+      </div>
+
+      <div class="tile tile-region" data-src="./region/">
+        <div class="card-circle"></div>
+        <div class="card-label"><span>R</span><span>E</span><span>G</span><span>I</span><span>O</span><span>N</span></div>
+      </div>
+
+      <div class="speak-listen-connector"></div>
+      <div class="listen-fragment-connector"></div>
+
+      <div class="tile tile-out"   data-src="./out/">
+        <div class="card-circle"></div>
+        <div class="card-label"><span>O</span><span>U</span><span>T</span></div>
+      </div>
+
+      <div class="tile tile-again" data-src="./again/">
+        <div class="card-circle"></div>
+        <div class="card-label"><span>A</span><span>G</span><span>A</span><span>I</span><span>N</span></div>
+      </div>
+
+      <div class="tile tile-call" data-src="./call/">
+        <div class="card-circle"></div>
+        <div class="card-label"><span>C</span><span>A</span><span>L</span><span>L</span></div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- expands from the clicked tile to full screen -->
+  <div id="zoomOverlay">
+    <iframe id="zoomFrame" src="" title=""></iframe>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── Fit grid to viewport via zoom ─────────────────────────────────────── */
+  const GRID_W = 5 * 320 + 1 * 30 + 5 * 30; // 1780px (5 card cols + 1 spacer col + 5 gaps)
+
+  function fitGrid() {
+    const grid  = document.querySelector('.grid');
+    const avail = window.innerWidth - 64; // 32px padding each side
+    grid.style.zoom = Math.min(1, avail / GRID_W);
+  }
+
+  fitGrid();
+  window.addEventListener('resize', fitGrid);
+
+  const overlay   = document.getElementById('zoomOverlay');
+  const zoomFrame = document.getElementById('zoomFrame');
+
+  const EASE = 'cubic-bezier(0.4,0,0.2,1)';
+  const DUR  = 440; // ms
+
+  let savedRect = null;
+  let zoomed    = false;
+
+  // ── Theme ──────────────────────────────────────────────────────────────────
+  function applyTheme(t) {
+    document.body.classList.toggle('dark', t === 'dark');
+  }
+
+  applyTheme(localStorage.getItem('theme') || 'light');
+
+  // Keep in sync if another app changes the theme while index is open
+  window.addEventListener('storage', e => {
+    if (e.key === 'theme') applyTheme(e.newValue || 'light');
+  });
+
+  // Also sync when returning from an app (theme may have changed inside iframe)
+  window.addEventListener('focus', () => {
+    applyTheme(localStorage.getItem('theme') || 'light');
+  });
+
+  // ── Open ──────────────────────────────────────────────────────────────────
+  document.querySelectorAll('.tile[data-src]').forEach(tile => {
+    tile.addEventListener('click', () => {
+      if (zoomed) return;
+      openZoom(tile.getBoundingClientRect(), tile.dataset.src);
+    });
+  });
+
+  function openZoom(rect, src) {
+    zoomed    = true;
+    savedRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+
+    // Match overlay background to app theme so iframe-blank moments don't show index page
+    const dark = localStorage.getItem('theme') === 'dark';
+    overlay.style.background = dark
+      ? 'linear-gradient(150deg, #13141a 0%, #0f1014 100%)'
+      : 'linear-gradient(150deg, #eceef2 0%, #d8dae1 100%)';
+
+    // Start overlay exactly on top of the tile (no transition)
+    overlay.style.transition   = 'none';
+    overlay.style.display      = 'block';
+    overlay.style.left         = rect.left   + 'px';
+    overlay.style.top          = rect.top    + 'px';
+    overlay.style.width        = rect.width  + 'px';
+    overlay.style.height       = rect.height + 'px';
+    overlay.style.borderRadius = '18px';
+
+    // Force reflow so the initial position is committed
+    overlay.getBoundingClientRect();
+
+    // Animate to full screen
+    requestAnimationFrame(() => { requestAnimationFrame(() => {
+      overlay.style.transition   = [
+        `top ${DUR}ms ${EASE}`,
+        `left ${DUR}ms ${EASE}`,
+        `width ${DUR}ms ${EASE}`,
+        `height ${DUR}ms ${EASE}`,
+        `border-radius ${DUR}ms ease`
+      ].join(', ');
+      overlay.style.left         = '0';
+      overlay.style.top          = '0';
+      overlay.style.width        = '100vw';
+      overlay.style.height       = '100vh';
+      overlay.style.borderRadius = '0px';
+    }); });
+
+    // Load the app only after the overlay reaches full screen,
+    // so the iframe's window.innerWidth reflects the real screen size
+    setTimeout(() => { zoomFrame.src = src; }, DUR);
+  }
+
+  // ── Close ─────────────────────────────────────────────────────────────────
+  function closeZoom() {
+    if (!zoomed || !savedRect) return;
+
+    // Sync theme in case it changed inside the app
+    applyTheme(localStorage.getItem('theme') || 'light');
+
+    const FADE = 260;
+
+    // Fade out the iframe content first
+    zoomFrame.style.transition = `opacity ${FADE}ms ease-out`;
+    zoomFrame.style.opacity    = '0';
+
+    // Then shrink the overlay back to the card
+    setTimeout(() => {
+      overlay.style.transition   = [
+        `top ${DUR}ms ${EASE}`,
+        `left ${DUR}ms ${EASE}`,
+        `width ${DUR}ms ${EASE}`,
+        `height ${DUR}ms ${EASE}`,
+        `border-radius ${DUR}ms ease`
+      ].join(', ');
+      overlay.style.left         = savedRect.left   + 'px';
+      overlay.style.top          = savedRect.top    + 'px';
+      overlay.style.width        = savedRect.width  + 'px';
+      overlay.style.height       = savedRect.height + 'px';
+      overlay.style.borderRadius = '18px';
+
+      // Clean up after shrink completes
+      setTimeout(() => {
+        overlay.style.display      = 'none';
+        zoomFrame.src              = '';
+        zoomFrame.style.transition = '';
+        zoomFrame.style.opacity    = '';
+        savedRect = null;
+        zoomed    = false;
+      }, DUR + 30);
+    }, FADE);
+  }
+
+  window.addEventListener('message', e => {
+    if (e.data !== 'goIndex') return;
+
+    // Snap scroll to the tile matching the current app, then update savedRect
+    try {
+      const href = zoomFrame.contentWindow.location.href;
+      document.querySelectorAll('.tile').forEach(tile => {
+        const path = tile.dataset.src.replace('./', '/');
+        if (href.includes(path)) {
+          tile.scrollIntoView({ behavior: 'instant', block: 'center' });
+          const r = tile.getBoundingClientRect();
+          savedRect = { left: r.left, top: r.top, width: r.width, height: r.height };
+        }
+      });
+    } catch (err) {}
+
+    setTimeout(closeZoom, 500);
+  });
+}());
+</script>
+
+</body>
+</html>

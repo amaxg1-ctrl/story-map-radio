@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRACE</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-a: #eceef2; --bg-b: #d8dae1;
+      --text:       rgba(88,90,102,0.82);
+      --text-muted: #b0b3bc;
+      --btn-bg:     rgba(158,161,170,0.26);
+      --btn-border: rgba(255,255,255,0.55);
+      --btn-inset:  rgba(255,255,255,0.45);
+      --label:      rgba(88,90,102,0.55);
+      --tile-filter: grayscale(1) brightness(1.08) contrast(0.88);
+    }
+
+    body.dark {
+      --bg-a: #13141a; --bg-b: #0f1014;
+      --text:       rgba(200,202,218,0.85);
+      --text-muted: rgba(140,142,158,0.75);
+      --btn-bg:     rgba(42,44,58,0.55);
+      --btn-border: rgba(255,255,255,0.10);
+      --btn-inset:  rgba(255,255,255,0.05);
+      --label:      rgba(255,255,255,0.30);
+      --tile-filter: grayscale(1) brightness(0.38) contrast(1.18) invert(1);
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      user-select: none; -webkit-user-select: none;
+    }
+
+    #map {
+      width: 100%; height: 100%;
+    }
+
+    #map .leaflet-tile {
+      filter: var(--tile-filter);
+      transition: filter 0.3s;
+    }
+
+    .leaflet-control-attribution {
+      font-size: 9px;
+      opacity: 0.30;
+      background: transparent !important;
+      color: var(--label) !important;
+    }
+
+    .leaflet-control-zoom a {
+      color: var(--label) !important;
+      background: var(--btn-bg) !important;
+      border-color: var(--btn-border) !important;
+    }
+
+    /* ── App label ──────────────────────────────────────────────────────── */
+    .app-name {
+      position: fixed;
+      top: 26px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px; font-weight: 400;
+      letter-spacing: 0.5em; text-transform: uppercase;
+      color: var(--label);
+      transition: color 0.3s;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    /* ── Settings bar ───────────────────────────────────────────────────── */
+    .settings-bar {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 0;
+      background: var(--btn-bg);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--btn-border); border-radius: 40px;
+      padding: 5px 6px 5px 10px; z-index: 1000;
+      box-shadow: 0 4px 28px rgba(0,0,0,0.12);
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    body.dark .settings-bar { opacity: 0.42; transition: opacity 0.25s; }
+    body.dark .settings-bar:hover,
+    body.dark .settings-bar.lit { opacity: 1; }
+
+    .settings-arrows {
+      display: flex; flex-direction: column; align-items: center; gap: 1px;
+      margin-right: 10px;
+    }
+
+    .arrow-btn {
+      width: 20px; height: 19px; border-radius: 4px; border: none;
+      background: transparent; color: var(--text-muted);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 0; transition: color 0.18s; -webkit-tap-highlight-color: transparent;
+    }
+    .arrow-btn:hover { color: var(--text); }
+    .arrow-btn svg { width: 9px; height: 9px; pointer-events: none; }
+
+    .settings-label {
+      font-size: 9.5px; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--text-muted); min-width: 108px; text-align: center;
+      transition: color 0.3s;
+    }
+
+    .settings-actions { display: flex; gap: 6px; margin-left: 10px; }
+
+    .action-btn {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 1.5px solid var(--btn-border);
+      background: var(--btn-bg);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.18s, box-shadow 0.18s, color 0.18s, border-color 0.18s;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+      outline: none; -webkit-tap-highlight-color: transparent;
+    }
+    .action-btn svg { width: 20px; height: 20px; pointer-events: none; }
+
+    .sun-btn  { color: rgb(255,136,0); }
+    .moon-btn { color: rgb(160,80,255); }
+
+    .sun-btn.active {
+      background: rgba(255,136,0,0.16); border-color: rgba(255,136,0,0.55);
+      box-shadow: 0 0 0 3px rgba(255,136,0,0.13), 0 0 18px rgba(255,136,0,0.40),
+                  0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+    }
+    .moon-btn.active {
+      background: rgba(160,80,255,0.16); border-color: rgba(160,80,255,0.55);
+      box-shadow: 0 0 0 3px rgba(160,80,255,0.13), 0 0 18px rgba(160,80,255,0.44),
+                  0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+    }
+
+    #btnGo {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.14em;
+      color: rgba(160,80,255,0.62);
+      border-color: rgba(160,80,255,0.28);
+      background: rgba(160,80,255,0.08);
+    }
+    #btnStay {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.14em;
+      color: rgba(255,136,0,0.62);
+      border-color: rgba(255,136,0,0.28);
+      background: rgba(255,136,0,0.08);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="map"></div>
+  <div class="app-name">TRACE</div>
+
+  <!-- ── Settings bar ──────────────────────────────────────────────────── -->
+  <div class="settings-bar">
+    <div class="settings-arrows">
+      <button class="arrow-btn" id="arrowUp" aria-label="Previous setting">
+        <svg viewBox="0 0 9 9" fill="currentColor"><polygon points="4.5,1 8.5,7 0.5,7"/></svg>
+      </button>
+      <button class="arrow-btn" id="arrowDown" aria-label="Next setting">
+        <svg viewBox="0 0 9 9" fill="currentColor"><polygon points="4.5,8 0.5,2 8.5,2"/></svg>
+      </button>
+    </div>
+
+    <span class="settings-label" id="settingsLabel">APPEARANCE</span>
+
+    <div class="settings-actions" id="themeActions">
+      <button class="action-btn sun-btn" id="btnSun" title="Light mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4.2" fill="currentColor" stroke="none"/>
+          <line x1="12" y1="2"  x2="12" y2="5"/>  <line x1="12" y1="19" x2="12" y2="22"/>
+          <line x1="2"  y1="12" x2="5"  y2="12"/> <line x1="19" y1="12" x2="22" y2="12"/>
+          <line x1="4.2"  y1="4.2"  x2="6.4"  y2="6.4"/>
+          <line x1="17.6" y1="17.6" x2="19.8" y2="19.8"/>
+          <line x1="19.8" y1="4.2"  x2="17.6" y2="6.4"/>
+          <line x1="6.4"  y1="17.6" x2="4.2"  y2="19.8"/>
+        </svg>
+      </button>
+      <button class="action-btn moon-btn" id="btnMoon" title="Dark mode">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="settings-actions" id="indexActions" style="display:none">
+      <button class="action-btn" id="btnGo"   title="Leave to index">LEAVE</button>
+      <button class="action-btn" id="btnStay" title="Stay here">STAY</button>
+    </div>
+  </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ── Theme ──────────────────────────────────────────────────────────────────
+  const btnSun  = document.getElementById('btnSun');
+  const btnMoon = document.getElementById('btnMoon');
+
+  function setTheme(t) {
+    localStorage.setItem('theme', t);
+    document.body.classList.toggle('dark', t === 'dark');
+    btnSun.classList.toggle('active',  t === 'light');
+    btnMoon.classList.toggle('active', t === 'dark');
+  }
+
+  setTheme(localStorage.getItem('theme') || 'light');
+  window.addEventListener('storage', e => {
+    if (e.key === 'theme') setTheme(e.newValue || 'light');
+  });
+
+  btnSun.addEventListener('click',  () => setTheme('light'));
+  btnMoon.addEventListener('click', () => setTheme('dark'));
+
+  // ── Settings carousel ──────────────────────────────────────────────────────
+  const PAGES = ['APPEARANCE', 'NAVIGATION'];
+  let settingPage = 0;
+
+  function showSettingPage(n) {
+    settingPage = ((n % PAGES.length) + PAGES.length) % PAGES.length;
+    document.getElementById('settingsLabel').textContent = PAGES[settingPage];
+    document.getElementById('themeActions').style.display  = settingPage === 0 ? '' : 'none';
+    document.getElementById('indexActions').style.display  = settingPage === 1 ? '' : 'none';
+  }
+
+  document.getElementById('arrowUp').addEventListener('click',   () => showSettingPage(settingPage - 1));
+  document.getElementById('arrowDown').addEventListener('click', () => showSettingPage(settingPage + 1));
+
+  document.getElementById('btnGo').addEventListener('click', () => {
+    if (window.parent !== window) { window.parent.postMessage('goIndex', '*'); return; }
+    window.location.href = '../';
+  });
+  document.getElementById('btnStay').addEventListener('click', () => showSettingPage(0));
+
+  // ── Dark-mode bar lit-on-touch ─────────────────────────────────────────────
+  (function () {
+    const bar = document.querySelector('.settings-bar');
+    if (!bar) return;
+    let timer;
+    bar.addEventListener('touchstart', () => {
+      bar.classList.add('lit');
+      clearTimeout(timer);
+      timer = setTimeout(() => bar.classList.remove('lit'), 2200);
+    }, { passive: true });
+  }());
+
+  // ── Map ────────────────────────────────────────────────────────────────────
+  const map = L.map('map', {
+    center: [20, 0],
+    zoom: 2,
+    minZoom: 2,
+    maxZoom: 19,
+    zoomControl: true,
+    attributionControl: true,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(map);
+
+}());
+</script>
+</body>
+</html>

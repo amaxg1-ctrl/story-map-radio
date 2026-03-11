@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progression</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-a: #eceef2; --bg-b: #d8dae1;
+      --hex-bg:        rgba(158,161,170,0.20);
+      --circle-border: rgba(88,90,102,0.22);
+      --label-color:   rgba(88,90,102,0.80);
+      --title-color:   rgba(88,90,102,0.38);
+      --divider:       rgba(88,90,102,0.18);
+      --ghost-border:  rgba(88,90,102,0.12);
+      --shade-0: rgba(128, 40, 16, 0.90);
+      --shade-1: rgba(160, 68, 34, 0.74);
+      --shade-2: rgba(186, 96, 54, 0.58);
+      --shade-3: rgba(204, 126, 76, 0.42);
+      --shade-4: rgba(216, 152, 98, 0.30);
+      --shade-5: rgba(226, 174, 116, 0.20);
+      --shade-6: rgba(232, 190, 135, 0.12);
+    }
+
+    body.dark {
+      --bg-a: #13141a; --bg-b: #0f1014;
+      --hex-bg:        rgba(42,44,58,0.55);
+      --circle-border: rgba(255,255,255,0.18);
+      --label-color:   rgba(255,255,255,0.72);
+      --title-color:   rgba(255,255,255,0.28);
+      --divider:       rgba(200,202,218,0.14);
+      --ghost-border:  rgba(255,255,255,0.08);
+      --shade-0: rgba(68, 14, 112, 0.95);
+      --shade-1: rgba(88, 28, 148, 0.82);
+      --shade-2: rgba(106, 44, 172, 0.66);
+      --shade-3: rgba(122, 62, 192, 0.50);
+      --shade-4: rgba(138, 82, 206, 0.36);
+      --shade-5: rgba(152, 102, 218, 0.22);
+      --shade-6: rgba(163, 116, 224, 0.13);
+    }
+
+    html, body {
+      min-height: 100vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    body {
+      background: linear-gradient(150deg, var(--bg-a) 0%, var(--bg-b) 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      transition: background 0.3s;
+    }
+
+    .page {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px 80px;
+    }
+
+    .page-title {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.36em;
+      text-transform: uppercase;
+      color: var(--title-color);
+      margin-bottom: 36px;
+      transition: color 0.3s;
+    }
+
+    .back-link {
+      position: fixed;
+      bottom: 16px;
+      left: 20px;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--title-color);
+      text-decoration: none;
+      opacity: 0.55;
+      transition: opacity 0.2s, color 0.3s;
+      z-index: 50;
+    }
+    .back-link:hover { opacity: 1; }
+
+    /* ── Step sections ───────────────────────────────────────────────── */
+    .step {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 0;
+    }
+
+    .step-label {
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--title-color);
+      margin-bottom: 18px;
+      transition: color 0.3s;
+    }
+
+    .step-divider {
+      width: 80%;
+      max-width: 400px;
+      height: 1px;
+      background: var(--divider);
+      transition: background 0.3s;
+    }
+
+    /* ── Positioned mini hex grid (40% of index grid) ────────────────
+       Index: 720x520, hex 180x208, row step 156
+       Mini:  288x208, hex  72x 83, row step  62
+       Row 1: top 0     — ALOUD(0) ALONG(72) ECHO(144) REGION(216)
+       Row 2: top 62    — SPEAK(36) LISTEN(108) FRAGMENT(180)
+       Row 3: top 125   — TRACE(0) OUT(72) AGAIN(144) CALL(216)
+    ─────────────────────────────────────────────────────────────────── */
+    .mini-grid {
+      position: relative;
+      width: 288px;
+      height: 208px;
+    }
+
+    .mini-hex {
+      position: absolute;
+      width: 72px;
+      height: 83px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mini-hex:hover .mini-hex-inner {
+      filter: brightness(1.12);
+      transform: scale(1.08);
+    }
+    .mini-hex.ghost { cursor: default; }
+    .mini-hex.ghost:hover .mini-hex-inner {
+      filter: none;
+      transform: none;
+    }
+
+    /* Positioned slots — Row 1 */
+    .slot-aloud    { left:   0px; top:  0px; }
+    .slot-along    { left:  72px; top:  0px; }
+    .slot-echo     { left: 144px; top:  0px; }
+    .slot-region   { left: 216px; top:  0px; }
+    /* Row 2 */
+    .slot-speak    { left:  36px; top: 62px; }
+    .slot-listen   { left: 108px; top: 62px; }
+    .slot-fragment { left: 180px; top: 62px; }
+    /* Row 3 */
+    .slot-trace    { left:   0px; top: 125px; }
+    .slot-out      { left:  72px; top: 125px; }
+    .slot-again    { left: 144px; top: 125px; }
+    .slot-call     { left: 216px; top: 125px; }
+
+    .mini-hex-inner {
+      width: 92%;
+      height: 92%;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      background: var(--hex-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.3s, filter 0.18s, transform 0.18s;
+    }
+
+    /* Ghost (empty outline) hex */
+    .ghost .mini-hex-inner {
+      background: transparent;
+      box-shadow: none;
+      position: relative;
+    }
+    .ghost .mini-hex-inner::after {
+      content: '';
+      position: absolute;
+      inset: 2px;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      background: transparent;
+      /* Use an SVG outline approach via border simulation */
+    }
+    /* SVG-based ghost outline */
+    .ghost-outline {
+      position: absolute;
+      inset: 4%;
+      width: 92%;
+      height: 92%;
+      pointer-events: none;
+    }
+    .ghost-outline polygon {
+      fill: none;
+      stroke: var(--ghost-border);
+      stroke-width: 1.5;
+      transition: stroke 0.3s;
+    }
+
+    .mini-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      width: 76%;
+    }
+
+    .mini-circle {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid var(--circle-border);
+      flex-shrink: 0;
+      transition: border-color 0.3s;
+    }
+
+    .mini-label {
+      display: flex;
+      justify-content: space-evenly;
+      align-items: center;
+      width: 100%;
+      font-size: 6px;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      color: var(--label-color);
+      transition: color 0.3s;
+    }
+
+    .mini-label span { display: block; }
+
+    /* ── Shade classes ────────────────────────────────────────────────── */
+    .hex-shade-0 .mini-hex-inner { background: var(--shade-0); }
+    .hex-shade-1 .mini-hex-inner { background: var(--shade-1); }
+    .hex-shade-2 .mini-hex-inner { background: var(--shade-2); }
+    .hex-shade-3 .mini-hex-inner { background: var(--shade-3); }
+    .hex-shade-4 .mini-hex-inner { background: var(--shade-4); }
+    .hex-shade-5 .mini-hex-inner { background: var(--shade-5); }
+    .hex-shade-6 .mini-hex-inner { background: var(--shade-6); }
+  </style>
+</head>
+<body>
+
+  <a class="back-link" href="../index.html">&larr; Index</a>
+
+  <div class="page">
+    <div class="page-title">Progression</div>
+
+    <!-- Steps are generated by JS below -->
+    <div id="stepsContainer"></div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  function applyTheme(t) {
+    document.body.classList.toggle('dark', t === 'dark');
+  }
+  applyTheme(localStorage.getItem('theme') || 'light');
+  window.addEventListener('storage', e => {
+    if (e.key === 'theme') applyTheme(e.newValue || 'light');
+  });
+  window.addEventListener('focus', () => {
+    applyTheme(localStorage.getItem('theme') || 'light');
+  });
+
+  // ── Grid layout — matches index.html positions ────────────────────────────
+  // Each entry: [name, slot-class, shade-class, href]
+  const ALL_HEXES = [
+    // Row 1
+    ['ALOUD',    'slot-aloud',    'hex-shade-1', '../aloud/index.html'],
+    ['ALONG',    'slot-along',    'hex-shade-3', '../along/index.html'],
+    ['ECHO',     'slot-echo',     'hex-shade-5', '../echo/index.html'],
+    ['REGION',   'slot-region',   '',            '../region/index.html'],
+    // Row 2
+    ['SPEAK',    'slot-speak',    'hex-shade-0', '../speak/index.html'],
+    ['LISTEN',   'slot-listen',   'hex-shade-2', '../listen/index.html'],
+    ['FRAGMENT', 'slot-fragment', 'hex-shade-4', '../fragment/index.html'],
+    // Row 3
+    ['TRACE',    'slot-trace',    '',            '../trace/index.html'],
+    ['OUT',      'slot-out',      'hex-shade-1', '../out/index.html'],
+    ['AGAIN',    'slot-again',    'hex-shade-3', '../again/index.html'],
+    ['CALL',     'slot-call',     'hex-shade-5', '../call/index.html'],
+  ];
+
+  // ── Steps: which apps are active in each ──────────────────────────────────
+  const STEPS = [
+    { label: '1', active: ['TRACE'] },
+    { label: '2', active: ['TRACE','SPEAK','LISTEN'] },
+    { label: '3', active: ['TRACE','SPEAK','LISTEN','ALOUD','ALONG'] },
+    { label: '4', active: ['TRACE','SPEAK','LISTEN','ALOUD','ALONG','OUT','AGAIN'] },
+    { label: '5', active: ['TRACE','SPEAK','LISTEN','ALOUD','ALONG','OUT','AGAIN','ECHO','FRAGMENT','CALL'] },
+    { label: '6', active: ['TRACE','SPEAK','LISTEN','ALOUD','ALONG','OUT','AGAIN','ECHO','REGION','FRAGMENT','CALL'] },
+    { label: '7', active: ['TRACE','REGION'] },
+  ];
+
+  // Ghost hex outline SVG points (hex polygon in a 72x83 viewBox at 92% scale)
+  const GHOST_SVG = '<svg class="ghost-outline" viewBox="0 0 72 83"><polygon points="36,0 72,20.75 72,62.25 36,83 0,62.25 0,20.75"/></svg>';
+
+  function buildLabel(name) {
+    return name.split('').map(c => '<span>' + c + '</span>').join('');
+  }
+
+  function buildFilledHex(hex) {
+    const [name, slot, shade, href] = hex;
+    return '<div class="mini-hex ' + slot + (shade ? ' ' + shade : '') + '" data-href="' + href + '">' +
+      '<div class="mini-hex-inner">' +
+        '<div class="mini-card">' +
+          '<div class="mini-circle"></div>' +
+          '<div class="mini-label">' + buildLabel(name) + '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function buildGhostHex(hex) {
+    const [, slot] = hex;
+    return '<div class="mini-hex ghost ' + slot + '">' +
+      '<div class="mini-hex-inner"></div>' +
+      GHOST_SVG +
+    '</div>';
+  }
+
+  const container = document.getElementById('stepsContainer');
+
+  STEPS.forEach((step, i) => {
+    if (i > 0) {
+      const divider = document.createElement('div');
+      divider.className = 'step-divider';
+      container.appendChild(divider);
+    }
+
+    const stepDiv = document.createElement('div');
+    stepDiv.className = 'step';
+
+    let html = '<div class="step-label">' + step.label + '</div>';
+    html += '<div class="mini-grid">';
+
+    ALL_HEXES.forEach(hex => {
+      const isActive = step.active.includes(hex[0]);
+      html += isActive ? buildFilledHex(hex) : buildGhostHex(hex);
+    });
+
+    html += '</div>';
+    stepDiv.innerHTML = html;
+    container.appendChild(stepDiv);
+  });
+
+  // ── Click handlers for active hexes ───────────────────────────────────────
+  document.querySelectorAll('.mini-hex[data-href]').forEach(hex => {
+    hex.addEventListener('click', () => {
+      window.location.href = hex.dataset.href;
+    });
+  });
+
+}());
+</script>
+
+</body>
+</html>

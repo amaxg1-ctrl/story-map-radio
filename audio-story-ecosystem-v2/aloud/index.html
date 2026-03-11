@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ALOUD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fugaz+One&display=swap">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Theme tokens ──────────────────────────────────────────────────── */
+    :root {
+      --bg-a: #eceef2; --bg-b: #d8dae1;
+      --accent:        rgb(255,136,0);
+      --accent-rgb:    255,136,0;
+      --accent-glow:   rgba(255,136,0,0.38);
+      --accent-ring:   rgba(255,136,0,0.13);
+      --accent-bg:     rgba(255,136,0,0.16);
+      --accent-border: rgba(255,136,0,0.55);
+      --text:          rgba(88,90,102,0.82);
+      --text-muted:    #b0b3bc;
+      --status:        #c4c6ce;
+      --btn-bg:        rgba(158,161,170,0.26);
+      --btn-border:    rgba(255,255,255,0.55);
+      --btn-inset:     rgba(255,255,255,0.45);
+      --mark-base:     rgba(88,90,102,0.13);
+      --mark-fill:     rgba(255,136,0,0.22);
+      --mark-stroke:   rgba(255,255,255,0.30);
+      --idle-ring:     rgba(172,174,183,0.48);
+      --idle-glow:     rgba(185,187,196,0.18);
+      --arrow-down:    rgb(160,80,255);
+      --row-bg:        rgba(158,161,170,0.20);
+      --row-shadow:    0 1px 6px rgba(0,0,0,0.07), inset 0 0 0 1px rgba(255,255,255,0.55);
+    }
+
+    body.dark {
+      --bg-a: #13141a; --bg-b: #0f1014;
+      --accent:        rgb(160,80,255);
+      --accent-rgb:    160,80,255;
+      --accent-glow:   rgba(160,80,255,0.44);
+      --accent-ring:   rgba(160,80,255,0.15);
+      --accent-bg:     rgba(160,80,255,0.18);
+      --accent-border: rgba(160,80,255,0.58);
+      --text:          rgba(200,202,218,0.85);
+      --text-muted:    rgba(140,142,158,0.75);
+      --status:        rgba(120,122,138,0.75);
+      --btn-bg:        rgba(42,44,58,0.55);
+      --btn-border:    rgba(255,255,255,0.10);
+      --btn-inset:     rgba(255,255,255,0.05);
+      --mark-base:     rgba(200,202,218,0.10);
+      --mark-fill:     rgba(160,80,255,0.22);
+      --mark-stroke:   rgba(255,255,255,0.22);
+      --idle-ring:     rgba(100,102,125,0.55);
+      --idle-glow:     rgba(80,82,110,0.22);
+      --arrow-down:    rgb(255,136,0);
+      --row-bg:        rgba(255,255,255,0.04);
+      --row-shadow:    0 1px 6px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.055);
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(150deg, var(--bg-a) 0%, var(--bg-b) 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      user-select: none; -webkit-user-select: none;
+      overflow: hidden;
+      transition: background 0.3s;
+    }
+
+    /* ── App name ──────────────────────────────────────────────────────── */
+    .app-super {
+      position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+      font-size: 8px; font-weight: 400;
+      letter-spacing: 0.45em; text-transform: uppercase;
+      color: var(--text-muted); z-index: 50; opacity: 0.55;
+      white-space: nowrap; transition: color 0.3s;
+    }
+    .app-name {
+      position: fixed; top: 26px; left: 50%; transform: translateX(-50%);
+      font-size: 11px; font-weight: 400;
+      letter-spacing: 0.5em; text-transform: uppercase;
+      color: var(--text-muted); z-index: 50;
+      transition: color 0.3s;
+    }
+
+    /* ── Status ────────────────────────────────────────────────────────── */
+    .status-text {
+      position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+      font-size: 9.5px; letter-spacing: 0.28em; text-transform: uppercase;
+      color: var(--status); z-index: 50; white-space: nowrap;
+      transition: color 0.3s;
+    }
+
+    /* ── Canvas — center at 95vh, only top dome visible ───────────────── */
+    #voiceCanvas {
+      position: fixed;
+      left: 50%; top: 94vh;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* ── Controls at circle midline ────────────────────────────────────── */
+    .controls {
+      position: fixed;
+      top: 94vh; left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex; align-items: center; gap: 8px;
+      z-index: 10;
+    }
+
+    .btn {
+      position: relative; width: 58px; height: 58px; border-radius: 50%;
+      border: 1.5px solid var(--btn-border);
+      background: var(--btn-bg);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      color: var(--text); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.18s, box-shadow 0.18s, color 0.18s, border-color 0.18s;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+      outline: none; -webkit-tap-highlight-color: transparent;
+    }
+    .btn:hover:not(:disabled) { filter: brightness(1.12); }
+    .btn.active {
+      background: var(--accent-bg);
+      border-color: var(--accent-border);
+      color: var(--accent);
+      box-shadow:
+        0 0 0 3px var(--accent-ring),
+        0 0 22px var(--accent-glow),
+        0 2px 14px rgba(0,0,0,0.09),
+        inset 0 1px 0 var(--btn-inset);
+    }
+    .btn:disabled { opacity: 0.28; cursor: default; }
+    .btn { width: 39px; height: 39px; }
+    .btn svg { width: 14px; height: 14px; flex-shrink: 0; pointer-events: none; }
+    .btn-label {
+      position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%);
+      font-size: 7px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--text-muted); white-space: nowrap; pointer-events: none;
+    }
+
+    /* ── Timer column ──────────────────────────────────────────────────── */
+    .timer-col {
+      position: fixed; left: 24px; top: 50%; transform: translateY(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 29px; z-index: 100;
+    }
+    .mark-svg { display: block; flex-shrink: 0; overflow: visible; }
+    .timer-col text { font-family: 'Fugaz One', sans-serif; }
+    .mark-base   { fill: var(--mark-base); stroke: var(--mark-stroke); stroke-width: 1.5; paint-order: stroke; }
+    .mark-accent { fill: var(--mark-fill); stroke: var(--mark-stroke); stroke-width: 1.5; paint-order: stroke; }
+    #arrowAbove36 polygon { fill: var(--accent); }
+    #arrowBelow3  polygon { fill: var(--arrow-down); }
+    #arrowAbove36, #arrowBelow3 { transition: opacity 0.5s ease; }
+
+    /* ── App nav ───────────────────────────────────────────────────────── */
+    .app-nav {
+      position: fixed; bottom: 10%;
+      display: flex; align-items: center; gap: 2px;
+      cursor: pointer; z-index: 50;
+      color: var(--text-muted);
+      opacity: 0.42; transition: opacity 0.2s, color 0.2s;
+      padding: 8px;
+      font-size: 9px; font-weight: 600;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .app-nav:hover { opacity: 1; color: var(--text); }
+    .app-nav-right { right: 20px; }
+    .app-nav-left  { left: 20px; }
+    .app-nav svg   { flex-shrink: 0; }
+    .app-nav-down  { left: 10%; flex-direction: column; }
+    .app-nav-down span { writing-mode: vertical-rl; }
+
+    /* ── Reading reel ──────────────────────────────────────────────────── */
+    .reading-container {
+      position: fixed;
+      top: 78px;
+      left: 50%; transform: translateX(-50%);
+      z-index: 20;
+    }
+    .reel { display: flex; flex-direction: column; gap: 5px; }
+    .reel-row {
+      width: 80vw;
+      border-radius: 10px;
+      background: var(--row-bg);
+      box-shadow: var(--row-shadow);
+      transform-origin: center center;
+      will-change: transform;
+      cursor: pointer;
+      transition: background 0.3s, box-shadow 0.3s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── Mark SVGs as buttons ─────────────────────────────────────────── */
+    .mark-svg { cursor: pointer; }
+    .mark-svg.selected text { fill: var(--accent) !important; stroke: none !important; }
+
+    /* ── Reel rows: height transition for expand/collapse ─────────────── */
+    .reel-row { transition: height 0.38s cubic-bezier(0.4,0,0.2,1),
+                             opacity 0.28s ease,
+                             background 0.3s, box-shadow 0.3s; }
+    .reel-row.collapsed { overflow: hidden; }
+
+    /* ── Status icons ──────────────────────────────────────────────────── */
+    .status-icons {
+      position: fixed; top: 16px; right: 16px;
+      display: flex; align-items: center; gap: 10px; z-index: 300;
+    }
+    .si {
+      position: relative; width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); opacity: 0.30;
+      transition: opacity 0.2s, color 0.2s;
+    }
+    .si.si-on { color: var(--accent); opacity: 0.48; }
+    .si svg { pointer-events: none; }
+    .si > svg:not(.si-slash) { width: 100%; height: 100%; flex-shrink: 0; }
+    .si-slash {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: none; color: var(--text-muted);
+    }
+    .si.si-off .si-slash { display: block; }
+    #siHeadphones { cursor: pointer; }
+    #siLocation { cursor: pointer; }
+    .si-hp-wrap  { position: relative; }
+    .si-mic-wrap { position: relative; }
+    .si-mic-btn {
+      background: none; border: none; padding: 0;
+      cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent;
+    }
+    .si-mic-btn:hover { opacity: 0.65 !important; }
+    .mic-popup {
+      display: none;
+      position: absolute; top: calc(100% + 6px); right: 0;
+      min-width: 160px;
+      background: var(--btn-bg);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--btn-border);
+      border-radius: 12px; padding: 5px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.14); z-index: 400;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .mic-popup-item {
+      padding: 7px 10px;
+      font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--text); border-radius: 8px;
+      cursor: pointer; transition: background 0.15s; white-space: nowrap;
+    }
+    .mic-popup-item:hover { background: var(--accent-bg); color: var(--accent); }
+    .mic-popup-item.si-active { color: var(--accent); font-weight: 700; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Timer column ─────────────────────────────────────────────────── -->
+  <div class="timer-col" id="timerCol">
+
+    <svg id="arrowAbove36" viewBox="0 0 16 8" width="16" height="8" style="opacity:0;margin-bottom:4px"><polygon points="8,0 16,8 0,8" opacity="0.85"/></svg>
+
+    <!-- 36 -->
+    <svg class="mark-svg" viewBox="0 0 80 58" width="80" height="58">
+      <defs><clipPath id="mask-36"><rect id="fill-36" x="-20" y="58" width="120" height="0"/></clipPath></defs>
+      <text x="40" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">36</text>
+      <text x="40" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-accent" clip-path="url(#mask-36)">36</text>
+    </svg>
+
+    <!-- 18 -->
+    <svg class="mark-svg" viewBox="0 0 80 58" width="80" height="58">
+      <defs><clipPath id="mask-18"><rect id="fill-18" x="-20" y="58" width="120" height="0"/></clipPath></defs>
+      <text x="40" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">18</text>
+      <text x="40" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-accent" clip-path="url(#mask-18)">18</text>
+    </svg>
+
+    <!-- 9 -->
+    <svg class="mark-svg" viewBox="0 0 58 58" width="58" height="58">
+      <defs><clipPath id="mask-9"><rect id="fill-9" x="-10" y="58" width="78" height="0"/></clipPath></defs>
+      <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">9</text>
+      <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-accent" clip-path="url(#mask-9)">9</text>
+    </svg>
+
+    <!-- 6 -->
+    <svg class="mark-svg" viewBox="0 0 58 58" width="58" height="58">
+      <defs><clipPath id="mask-6"><rect id="fill-6" x="-10" y="58" width="78" height="0"/></clipPath></defs>
+      <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">6</text>
+      <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-accent" clip-path="url(#mask-6)">6</text>
+    </svg>
+
+    <!-- 3 -->
+    <svg class="mark-svg" viewBox="0 0 58 58" width="58" height="58">
+      <defs><clipPath id="mask-3"><rect id="fill-3" x="-10" y="58" width="78" height="0"/></clipPath></defs>
+      <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-base">3</text>
+      <text x="29" y="29" dominant-baseline="central" text-anchor="middle" font-size="44" font-weight="700" class="mark-accent" clip-path="url(#mask-3)">3</text>
+    </svg>
+
+    <svg id="arrowBelow3" viewBox="0 0 16 8" width="16" height="8" style="opacity:0;margin-top:4px"><polygon points="0,0 16,0 8,8" opacity="0.85"/></svg>
+
+  </div>
+
+  <div class="app-super">Speak</div>
+  <div class="app-name">Aloud</div>
+  <div class="status-text" id="statusText">ready</div>
+
+  <!-- ── Reading reel ──────────────────────────────────────────────────── -->
+  <div class="reading-container" id="readingContainer">
+    <div class="reel" id="readingReel">
+      <div class="reel-row" data-slot="0"></div>
+      <div class="reel-row" data-slot="1"></div>
+      <div class="reel-row" data-slot="2"></div>
+      <div class="reel-row" data-slot="3"></div>
+      <div class="reel-row" data-slot="4"></div>
+      <div class="reel-row" data-slot="5"></div>
+    </div>
+  </div>
+
+  <!-- Canvas center pinned to 95vh — only the top dome shows -->
+  <canvas id="voiceCanvas"></canvas>
+
+  <!-- Controls sit at the circle's equator -->
+  <div class="controls">
+
+    <button class="btn" id="btnArm" title="Arm microphone">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+      </svg>
+      <span class="btn-label">Arm</span>
+    </button>
+
+    <button class="btn" id="btnPlay" disabled title="Start recording">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      <span class="btn-label">Play</span>
+    </button>
+
+    <button class="btn" id="btnPause" disabled title="Pause recording">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      <span class="btn-label">Pause</span>
+    </button>
+
+    <button class="btn" id="btnStop" disabled title="Stop recording">
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+      <span class="btn-label">Stop</span>
+    </button>
+
+  </div>
+
+  <!-- ── App nav ───────────────────────────────────────────────────────── -->
+  <div class="app-nav app-nav-down app-nav-left" id="navToSpeak">
+    <span>SPEAK</span>
+    <svg viewBox="0 0 10 10" width="11" height="11" fill="currentColor">
+      <path d="M5,8 L1,4 L9,4 Z"/>
+    </svg>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Canvas setup ──────────────────────────────────────────────────────────
+  const canvas = document.getElementById('voiceCanvas');
+  const ctx    = canvas.getContext('2d');
+  const SIZE   = Math.round(Math.min(500, window.innerWidth * 0.85) * 0.67);
+  const dpr    = window.devicePixelRatio || 1;
+  canvas.width  = SIZE * dpr;
+  canvas.height = SIZE * dpr;
+  canvas.style.width  = SIZE + 'px';
+  canvas.style.height = SIZE + 'px';
+  ctx.scale(dpr, dpr);
+
+  const CX     = SIZE / 2;
+  const CY     = SIZE / 2;
+  const BASE_R = Math.round(SIZE * 0.38);
+
+  // ── Precomputed geometry ──────────────────────────────────────────────────
+  const N_CURVE = 128;
+  const COS_A   = new Float64Array(N_CURVE);
+  const SIN_A   = new Float64Array(N_CURVE);
+  for (let i = 0; i < N_CURVE; i++) {
+    const a  = (i / N_CURVE) * Math.PI * 2;
+    COS_A[i] = Math.cos(a);
+    SIN_A[i] = Math.sin(a);
+  }
+
+  // ── Elements ──────────────────────────────────────────────────────────────
+  const btnArm   = document.getElementById('btnArm');
+  const btnPlay  = document.getElementById('btnPlay');
+  const btnPause = document.getElementById('btnPause');
+  const btnStop  = document.getElementById('btnStop');
+  const statusEl = document.getElementById('statusText');
+
+  // ── App state ─────────────────────────────────────────────────────────────
+  let state = 'idle';
+
+  // ── Route tracking state ────────────────────────────────────────────────
+  let routeWatchId = null;
+  let currentRouteId = null;
+  let routeStartTime = null;
+  let routePointSeq = 0;
+  let routePointBuffer = [];
+  let routeFlushTimer = null;
+  const ROUTE_FLUSH_INTERVAL = 5000;
+  const ROUTE_MIN_DISTANCE_M = 3;
+  let routeLastLat = null;
+  let routeLastLng = null;
+
+  function haversineM(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const toRad = v => v * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function onRoutePosition(pos) {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    if (routeLastLat !== null && haversineM(routeLastLat, routeLastLng, lat, lng) < ROUTE_MIN_DISTANCE_M) return;
+    routeLastLat = lat;
+    routeLastLng = lng;
+    if (currentRouteId) {
+      routePointSeq++;
+      routePointBuffer.push({
+        route_id: currentRouteId,
+        lat: lat,
+        lng: lng,
+        accuracy: pos.coords.accuracy || null,
+        recorded_at: new Date().toISOString(),
+        seq: routePointSeq,
+      });
+    }
+  }
+
+  async function flushRoutePoints() {
+    if (routePointBuffer.length === 0) return;
+    const batch = routePointBuffer.splice(0);
+    const sb = window._sb;
+    if (!sb) { routePointBuffer.unshift(...batch); return; }
+    const { error } = await sb.from('route_points').insert(batch);
+    if (error) {
+      console.warn('flushRoutePoints error, re-queuing', error);
+      routePointBuffer.unshift(...batch);
+    }
+  }
+
+  async function startRouteTracking() {
+    const sb = window._sb;
+    if (!sb || !navigator.geolocation) return;
+    if (localStorage.getItem('locationEnabled') !== 'true') return;
+    try {
+      const perm = await navigator.permissions.query({ name: 'geolocation' });
+      if (perm.state !== 'granted') return;
+    } catch { return; }
+
+    const { data, error } = await sb.from('routes').insert({ created_at: new Date().toISOString() }).select('id').single();
+    if (error || !data) { console.warn('Could not create route', error); return; }
+
+    currentRouteId = data.id;
+    routeStartTime = Date.now();
+    routePointSeq = 0;
+    routePointBuffer = [];
+    routeLastLat = null;
+    routeLastLng = null;
+
+    routeWatchId = navigator.geolocation.watchPosition(onRoutePosition, () => {}, {
+      enableHighAccuracy: true,
+      maximumAge: 2000,
+      timeout: 10000,
+    });
+
+    routeFlushTimer = setInterval(flushRoutePoints, ROUTE_FLUSH_INTERVAL);
+  }
+
+  async function stopRouteTracking() {
+    if (routeWatchId !== null) {
+      navigator.geolocation.clearWatch(routeWatchId);
+      routeWatchId = null;
+    }
+    if (routeFlushTimer) {
+      clearInterval(routeFlushTimer);
+      routeFlushTimer = null;
+    }
+
+    await flushRoutePoints();
+
+    if (currentRouteId && window._sb) {
+      const duration = Date.now() - (routeStartTime || Date.now());
+      await window._sb.from('routes').update({
+        ended_at: new Date().toISOString(),
+        duration_ms: duration,
+      }).eq('id', currentRouteId);
+    }
+    currentRouteId = null;
+    routeStartTime = null;
+  }
+
+  // ── Theme ─────────────────────────────────────────────────────────────────
+  let theme = 'light';
+
+  function setTheme(t) {
+    theme = t;
+    document.body.classList.toggle('dark', t === 'dark');
+  }
+
+  function accentRGBA(a) {
+    return theme === 'dark' ? `rgba(160,80,255,${a})` : `rgba(255,136,0,${a})`;
+  }
+
+  // ── Audio state ───────────────────────────────────────────────────────────
+  let audioCtx     = null;
+  let analyser     = null;
+  let micStream    = null;
+  let smoothAmp    = 0;
+  let freqData     = null;
+  let timeData     = null;
+  let angleBins    = null;
+  let voiceMinBin  = 0;
+  let voiceMaxBin  = 0;
+
+  // ── Organic circle state ──────────────────────────────────────────────────
+  let smoothedRadii = null;
+  let spikeRadii    = null;
+  let phase         = 0;
+
+  async function startAudio() {
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
+      analyser  = audioCtx.createAnalyser();
+      analyser.fftSize               = 2048;
+      analyser.smoothingTimeConstant = 0.75;
+      audioCtx.createMediaStreamSource(micStream).connect(analyser);
+
+      const binHz = audioCtx.sampleRate / analyser.fftSize;
+      voiceMinBin = Math.max(1, Math.round(80   / binHz));
+      voiceMaxBin = Math.min(analyser.frequencyBinCount - 1, Math.round(8000 / binHz));
+
+      const logMin = Math.log(80);
+      const logMax = Math.log(8000);
+      angleBins    = new Int32Array(N_CURVE);
+      for (let i = 0; i < N_CURVE; i++) {
+        const freq  = Math.exp(logMin + (i / N_CURVE) * (logMax - logMin));
+        angleBins[i] = Math.max(voiceMinBin, Math.min(voiceMaxBin, Math.round(freq / binHz)));
+      }
+
+      freqData      = new Uint8Array(analyser.frequencyBinCount);
+      timeData      = new Uint8Array(analyser.fftSize);
+      smoothedRadii = new Float32Array(N_CURVE).fill(BASE_R);
+      spikeRadii    = new Float32Array(N_CURVE).fill(0);
+      return true;
+    } catch {
+      setStatus('microphone access denied');
+      return false;
+    }
+  }
+
+  function stopAudio() {
+    analyser = null; smoothAmp = 0; freqData = null; timeData = null;
+    smoothedRadii = null; spikeRadii = null;
+    if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    if (audioCtx)  { audioCtx.close(); audioCtx = null; }
+  }
+
+  // ── Timer ─────────────────────────────────────────────────────────────────
+  const SEGMENTS = [
+    { el: document.getElementById('fill-3'),  n:  3 },
+    { el: document.getElementById('fill-6'),  n:  6 },
+    { el: document.getElementById('fill-9'),  n:  9 },
+    { el: document.getElementById('fill-18'), n: 18 },
+    { el: document.getElementById('fill-36'), n: 36 },
+  ];
+  const MAX_MS = 72 * 60 * 1000;
+  const VB_H   = 58;
+
+  // Each bar fills in n minutes, holds full, then empties so all reach 0 at t=72
+  function barPct(min, n) {
+    if (min < n)       return min / n;         // filling  0→1
+    if (min < 72 - n)  return 1;               // held full
+    if (min < 72)      return (72 - min) / n;  // emptying 1→0
+    return 0;
+  }
+
+  const arrowAbove36 = document.getElementById('arrowAbove36');
+  const arrowBelow3  = document.getElementById('arrowBelow3');
+
+  function updateBar(ms) {
+    const min = ms / 60000;
+    SEGMENTS.forEach(({ el, n }) => {
+      const p = barPct(min, n);
+      el.setAttribute('y',      VB_H * (1 - p));
+      el.setAttribute('height', VB_H * p);
+    });
+    arrowAbove36.style.opacity = min < 36 ? '1' : '0';
+    arrowBelow3.style.opacity  = min >= 36 ? '1' : '0';
+  }
+
+  function resetBar() {
+    SEGMENTS.forEach(({ el }) => {
+      el.setAttribute('y',      VB_H);
+      el.setAttribute('height', 0);
+    });
+    arrowAbove36.style.opacity = '0';
+    arrowBelow3.style.opacity  = '0';
+  }
+
+  let timerInterval = null;
+  let elapsedMs     = 0;
+  let timerStart    = null;
+
+  function startTimer() { timerStart = Date.now(); timerInterval = setInterval(tick, 80); }
+  function pauseTimer() { elapsedMs += Date.now() - timerStart; clearInterval(timerInterval); timerInterval = null; }
+  function resetTimer() { clearInterval(timerInterval); timerInterval = null; elapsedMs = 0; timerStart = null; }
+
+  function tick() {
+    const total = elapsedMs + (Date.now() - timerStart);
+    if (total >= MAX_MS) { triggerStop(); return; }
+    updateBar(total);
+  }
+
+  // ── Drawing ───────────────────────────────────────────────────────────────
+  function drawIdleCircle() {
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    const glowColor = getComputedStyle(document.documentElement).getPropertyValue('--idle-glow').trim();
+    const ringColor = getComputedStyle(document.documentElement).getPropertyValue('--idle-ring').trim();
+    const grd = ctx.createRadialGradient(CX, CY, BASE_R - 4, CX, CY, BASE_R + 16);
+    grd.addColorStop(0, glowColor);
+    grd.addColorStop(1, 'rgba(128,128,160,0)');
+    ctx.beginPath();
+    ctx.arc(CX, CY, BASE_R + 16, 0, Math.PI * 2);
+    ctx.fillStyle = grd;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(CX, CY, BASE_R, 0, Math.PI * 2);
+    ctx.strokeStyle = ringColor;
+    ctx.lineWidth   = 1.5;
+    ctx.stroke();
+  }
+
+  function drawOrganicCircle(vol) {
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    const dynBase     = BASE_R + vol * SIZE * 0.04;
+    const MAX_DEFORM  = SIZE * 0.085;
+    const WOBBLE_AMP  = SIZE * 0.018;
+    const SPIKE_SCALE = SIZE * 0.065;
+    const MAX_R       = SIZE * 0.488;
+
+    const finalR = new Float32Array(N_CURVE);
+    for (let i = 0; i < N_CURVE; i++) {
+      const bin = angleBins[i];
+      let ampSmooth = freqData[bin - 2 < voiceMinBin ? voiceMinBin : bin - 2]
+                    + freqData[bin - 1 < voiceMinBin ? voiceMinBin : bin - 1]
+                    + freqData[bin]
+                    + freqData[bin + 1 > voiceMaxBin ? voiceMaxBin : bin + 1]
+                    + freqData[bin + 2 > voiceMaxBin ? voiceMaxBin : bin + 2];
+      ampSmooth = (ampSmooth / 5) / 255;
+
+      const a = (i / N_CURVE) * Math.PI * 2;
+      const wobble = Math.sin(a * 3 + phase)        * WOBBLE_AMP
+                   + Math.sin(a * 5 + phase * 1.4)  * WOBBLE_AMP * 0.45
+                   + Math.sin(a * 2 + phase * 0.65) * WOBBLE_AMP * 0.3;
+
+      const targetSmooth = dynBase + ampSmooth * MAX_DEFORM + wobble;
+      smoothedRadii[i]   = smoothedRadii[i] * 0.70 + targetSmooth * 0.30;
+
+      const rawAmp      = freqData[bin] / 255;
+      const targetSpike = Math.pow(rawAmp, 1.6) * SPIKE_SCALE;
+      spikeRadii[i]     = spikeRadii[i] * 0.44 + targetSpike * 0.56;
+
+      finalR[i] = Math.min(smoothedRadii[i] + spikeRadii[i], MAX_R);
+    }
+
+    if (vol > 0.015) {
+      const grd = ctx.createRadialGradient(CX, CY, 0, CX, CY, BASE_R * 1.18);
+      grd.addColorStop(0, accentRGBA(vol * 0.07));
+      grd.addColorStop(1, accentRGBA(0));
+      ctx.beginPath();
+      ctx.arc(CX, CY, BASE_R * 1.18, 0, Math.PI * 2);
+      ctx.fillStyle = grd;
+      ctx.fill();
+    }
+
+    ctx.beginPath();
+    for (let i = 0; i < N_CURVE; i++) {
+      const j  = (i + 1) % N_CURVE;
+      const x1 = CX + finalR[i] * COS_A[i];
+      const y1 = CY + finalR[i] * SIN_A[i];
+      const x2 = CX + finalR[j] * COS_A[j];
+      const y2 = CY + finalR[j] * SIN_A[j];
+      if (i === 0) {
+        const k = N_CURVE - 1;
+        ctx.moveTo((CX + finalR[k] * COS_A[k] + x1) / 2,
+                   (CY + finalR[k] * SIN_A[k] + y1) / 2);
+      }
+      ctx.quadraticCurveTo(x1, y1, (x1 + x2) / 2, (y1 + y2) / 2);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = accentRGBA(0.28 + vol * 0.62);
+    ctx.lineWidth   = 1.5 + vol * 2.5;
+    ctx.shadowBlur  = 5 + vol * 18;
+    ctx.shadowColor = accentRGBA(0.55);
+    ctx.stroke();
+    ctx.shadowBlur  = 0;
+    phase += 0.018;
+  }
+
+  // ── Animation loop ────────────────────────────────────────────────────────
+  function loop() {
+    requestAnimationFrame(loop);
+    if (!analyser) { drawIdleCircle(); return; }
+    analyser.getByteFrequencyData(freqData);
+    analyser.getByteTimeDomainData(timeData);
+    let sum = 0;
+    for (let i = 0; i < timeData.length; i++) {
+      const v = (timeData[i] - 128) / 128;
+      sum += v * v;
+    }
+    smoothAmp = smoothAmp * 0.80 + Math.sqrt(sum / timeData.length) * 0.20;
+    drawOrganicCircle(smoothAmp);
+  }
+
+  // ── UI sync ───────────────────────────────────────────────────────────────
+  function setStatus(msg) { statusEl.textContent = msg; }
+
+  function syncUI() {
+    [btnArm, btnPlay, btnPause, btnStop].forEach(b => b.classList.remove('active'));
+    switch (state) {
+      case 'idle':
+        btnArm.disabled = false; btnPlay.disabled    = true;
+        btnPause.disabled = true; btnStop.disabled   = true;
+        setStatus('ready');
+        break;
+      case 'armed':
+        btnArm.disabled = false; btnPlay.disabled    = false;
+        btnPause.disabled = true; btnStop.disabled   = false;
+        btnArm.classList.add('active');
+        setStatus('armed · press play to record');
+        break;
+      case 'recording':
+        btnArm.disabled = true;  btnPlay.disabled    = true;
+        btnPause.disabled = false; btnStop.disabled  = false;
+        btnPlay.classList.add('active');
+        setStatus('recording');
+        break;
+      case 'paused':
+        btnArm.disabled = true;  btnPlay.disabled    = false;
+        btnPause.disabled = false; btnStop.disabled  = false;
+        btnPause.classList.add('active');
+        setStatus('paused · press play to continue');
+        break;
+    }
+  }
+
+  function triggerStop() { stopRouteTracking(); stopAudio(); resetTimer(); state = 'idle'; syncUI(); }
+
+  // ── Button handlers ───────────────────────────────────────────────────────
+  btnArm.addEventListener('click', async () => {
+    if (state === 'idle') {
+      resetBar();
+      const ok = await startAudio();
+      if (!ok) return;
+      // Request location permission so GPS is ready when recording starts
+      if (localStorage.getItem('locationEnabled') === 'true' && navigator.geolocation) {
+        await new Promise(resolve => {
+          navigator.geolocation.getCurrentPosition(
+            () => resolve(),
+            () => resolve(),
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+          );
+        });
+      }
+      state = 'armed'; syncUI();
+    } else if (state === 'armed') {
+      stopAudio(); state = 'idle'; syncUI();
+    }
+  });
+
+  btnPlay.addEventListener('click', () => {
+    if (state === 'armed') {
+      state = 'recording'; syncUI(); startTimer();
+      startRouteTracking();
+    } else if (state === 'paused') {
+      state = 'recording'; syncUI(); startTimer();
+    }
+  });
+
+  btnPause.addEventListener('click', () => {
+    if (state === 'recording') {
+      state = 'paused'; syncUI(); pauseTimer();
+      arrowAbove36.style.opacity = '0';
+      arrowBelow3.style.opacity  = '0';
+    }
+  });
+
+  btnStop.addEventListener('click', () => {
+    if (state !== 'idle') triggerStop();
+  });
+
+  // ── Navigate to Speak (animated) ──────────────────────────────────────────
+  window.navigateToSpeak = function () {
+    if (document.body.classList.contains('exit-down')) return;
+    sessionStorage.setItem('transition', 'fromAloud');
+    document.body.classList.add('exit-down');
+    const ease = 'cubic-bezier(0.4,0,0.8,1)';
+    const appName  = document.querySelector('.app-name');
+    const statusTx = document.getElementById('statusText');
+    const navEl    = document.getElementById('navToSpeak');
+    const cvs      = document.getElementById('voiceCanvas');
+    const ctrls    = document.querySelector('.controls');
+    readingContainer.style.transition = `transform 0.75s ${ease}, opacity 0.55s ease-in`;
+    readingContainer.style.transform  = 'translateX(-50%) translateY(-110vh)';
+    readingContainer.style.opacity    = '0';
+    appName.style.transition  = 'opacity 0.28s ease-out';  appName.style.opacity  = '0';
+    statusTx.style.transition = 'opacity 0.28s ease-out';  statusTx.style.opacity = '0';
+    cvs.style.transition      = 'opacity 0.28s ease-out';  cvs.style.opacity      = '0';
+    ctrls.style.transition    = 'opacity 0.28s ease-out';  ctrls.style.opacity    = '0';
+    navEl.style.transition    = 'opacity 0.22s ease-out';  navEl.style.opacity    = '0';
+    timerColEl.style.transition = 'opacity 0.35s ease-out';
+    timerColEl.style.opacity    = '0';
+    setTimeout(() => { window.location.href = '../speak/index.html'; }, 700);
+  };
+
+  // ── Navigation ────────────────────────────────────────────────────────────
+  (function () {
+    const el = document.getElementById('navToSpeak');
+    let ty = 0;
+    el.addEventListener('click', () => { window.navigateToSpeak(); });
+    el.addEventListener('touchstart', e => { ty = e.touches[0].clientY; }, { passive: true });
+    el.addEventListener('touchend', e => {
+      if (e.changedTouches[0].clientY - ty > 30) window.navigateToSpeak();
+    }, { passive: true });
+  }());
+
+  // ── Reading reel ──────────────────────────────────────────────────────────
+  const readingContainer = document.getElementById('readingContainer');
+  const readingReel      = document.getElementById('readingReel');
+  const reelRows         = Array.from(document.querySelectorAll('#readingReel .reel-row'));
+
+  // Position timer-col tight to the left of the reading container
+  const timerColEl = document.getElementById('timerCol');
+  function positionTimerCol() {
+    const cr = readingContainer.getBoundingClientRect();
+    const tw = timerColEl.getBoundingClientRect().width;
+    timerColEl.style.left = (cr.left - tw - 8) + 'px';
+    timerColEl.style.top  = (cr.top + cr.height / 2) + 'px';
+  }
+
+  // Row heights fill available space above circle (6 rows)
+  const GAP = 5;
+  function computeRowH() {
+    const circleTop = window.innerHeight * 0.94 - SIZE / 2;
+    return Math.max(28, Math.floor((circleTop - 78 - 14 - 5 * GAP) / 6));
+  }
+  function setRowHeights() {
+    const rh = computeRowH();
+    const totalH = 6 * rh + 5 * GAP;
+    reelRows.forEach(row => { row.style.height = rh + 'px'; });
+    readingReel.style.height   = totalH + 'px';
+    readingReel.style.overflow = 'hidden';
+  }
+
+  // Apply OUT's scaleX taper based on each row's position in the reel
+  function applyReelScales() {
+    const reelRect = readingReel.getBoundingClientRect();
+    const ch = reelRect.height;
+    if (ch <= 0) return;
+    const rh = (ch - 5 * GAP) / 6;
+    reelRows.forEach(row => {
+      const r      = row.getBoundingClientRect();
+      const center = r.top + r.height / 2 - reelRect.top;
+      const dist   = Math.min(center, ch - center);
+      const d      = dist - rh / 2;
+      let scale;
+      if (d <= 0)           scale = 0.70;
+      else if (d >= 2 * rh) scale = 1.00;
+      else if (d >= rh)     scale = 0.85 + 0.15 * ((d - rh) / rh);
+      else                  scale = 0.70 + 0.15 * (d / rh);
+      row.style.transform = `scaleX(${scale.toFixed(4)})`;
+    });
+  }
+
+  setRowHeights();
+  positionTimerCol();
+  applyReelScales();
+  window.addEventListener('resize', () => {
+    if (expandedSlot < 0) { setRowHeights(); applyReelScales(); }
+    positionTimerCol();
+  });
+
+  // ── Duration selection via mark-svg buttons ────────────────────────────────
+  const MARK_DURATIONS = [36, 18, 9, 6, 3];
+  const markSvgs       = Array.from(document.querySelectorAll('.mark-svg'));
+  let selectedDuration = null;
+
+  markSvgs.forEach((svg, i) => {
+    svg.addEventListener('click', () => {
+      const dur = MARK_DURATIONS[i];
+      if (selectedDuration === dur) {
+        selectedDuration = null;
+        svg.classList.remove('selected');
+      } else {
+        markSvgs.forEach(s => s.classList.remove('selected'));
+        selectedDuration = dur;
+        svg.classList.add('selected');
+      }
+    });
+  });
+
+  // ── Expand / collapse reel rows in-place ──────────────────────────────────
+  let expandedSlot = -1;
+
+  function expandRow(idx) {
+    if (expandedSlot >= 0) return;
+    expandedSlot = idx;
+    const rh = computeRowH();
+    const expandedH = 6 * rh; // fills total height (5 gaps absorbed by zero-height rows)
+    reelRows.forEach((row, i) => {
+      if (i === idx) {
+        row.style.height = expandedH + 'px';
+        row.style.transform = 'scaleX(1)';
+      } else {
+        row.classList.add('collapsed');
+        row.style.height  = '0px';
+        row.style.opacity = '0';
+        row.style.transform = 'scaleX(1)';
+      }
+    });
+  }
+
+  function collapseRow() {
+    if (expandedSlot < 0) return;
+    expandedSlot = -1;
+    const rh = computeRowH();
+    reelRows.forEach(row => {
+      row.style.height  = rh + 'px';
+      row.style.opacity = '';
+      row.classList.remove('collapsed');
+    });
+    setTimeout(applyReelScales, 400);
+  }
+
+  reelRows.forEach((row, i) => {
+    row.addEventListener('click', () => {
+      if (expandedSlot === i) collapseRow();
+      else expandRow(i);
+    });
+  });
+
+  // ── Entry animation from SPEAK ────────────────────────────────────────────
+  function runEntryFromSpeak() {
+    const appName  = document.querySelector('.app-name');
+    const statusTx = document.getElementById('statusText');
+    const navEl    = document.getElementById('navToSpeak');
+    const cvs      = document.getElementById('voiceCanvas');
+    const ctrls    = document.querySelector('.controls');
+    const ease     = 'cubic-bezier(0.4,0,0.2,1)';
+
+    // Instant start positions — no transitions
+    readingContainer.style.transition = 'none';
+    readingContainer.style.transform  = 'translateX(-50%) translateY(-110vh)';
+    readingContainer.style.opacity    = '0';
+
+    appName.style.transition = 'none';
+    appName.style.opacity    = '0';
+    appName.style.transform  = 'translateX(-50%) translateY(-50px)';
+
+    statusTx.style.transition = 'none';
+    statusTx.style.opacity    = '0';
+    statusTx.style.transform  = 'translateX(-50%) translateY(-50px)';
+
+    navEl.style.transition = 'none';
+    navEl.style.opacity    = '0';
+
+    cvs.style.transition   = 'none';
+    cvs.style.opacity      = '0';
+    ctrls.style.transition = 'none';
+    ctrls.style.opacity    = '0';
+    timerColEl.style.transition = 'none';
+    timerColEl.style.opacity    = '0';
+
+    // Force reflow so start positions are committed before transitions begin
+    readingContainer.getBoundingClientRect();
+
+    // Double-rAF ensures paint of start state before transition kicks in
+    requestAnimationFrame(() => { requestAnimationFrame(() => {
+      readingContainer.style.transition = `transform 0.9s ${ease}, opacity 0.55s ease-out`;
+      readingContainer.style.transform  = 'translateX(-50%)';
+      readingContainer.style.opacity    = '';
+
+      appName.style.transition = `transform 0.7s ${ease} 0.08s, opacity 0.5s ease-out 0.08s`;
+      appName.style.transform  = 'translateX(-50%)';
+      appName.style.opacity    = '';
+
+      statusTx.style.transition = `transform 0.7s ${ease} 0.14s, opacity 0.5s ease-out 0.14s`;
+      statusTx.style.transform  = 'translateX(-50%)';
+      statusTx.style.opacity    = '';
+
+      cvs.style.transition   = `opacity 0.6s ease-out 0.3s`;
+      cvs.style.opacity      = '';
+      ctrls.style.transition = `opacity 0.6s ease-out 0.3s`;
+      ctrls.style.opacity    = '';
+
+      navEl.style.transition = `opacity 0.5s ease-out 0.5s`;
+      navEl.style.opacity    = '';
+
+      timerColEl.style.transition = 'opacity 0.5s ease-out 0.3s';
+      timerColEl.style.opacity    = '';
+
+      // Clean up inline styles after animation completes
+      setTimeout(() => {
+        readingContainer.style.transition = '';
+        readingContainer.style.transform  = 'translateX(-50%)';
+        appName.style.cssText    = '';
+        statusTx.style.cssText   = '';
+        navEl.style.cssText      = '';
+        cvs.style.transition     = '';   cvs.style.opacity   = '';
+        ctrls.style.transition   = '';   ctrls.style.opacity = '';
+        timerColEl.style.transition = '';
+        timerColEl.style.opacity    = '';
+        positionTimerCol();
+      }, 1200);
+    }); });
+  }
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  setTheme(localStorage.getItem('theme') || 'light');
+  syncUI();
+  loop();
+  if (sessionStorage.getItem('transition') === 'fromSpeak') {
+    sessionStorage.removeItem('transition');
+    requestAnimationFrame(runEntryFromSpeak);
+  }
+
+}());
+
+// ── Status icons ──────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+  const siHp     = document.getElementById('siHeadphones');
+  const hpPopup  = document.getElementById('hpPopup');
+  const siMic    = document.getElementById('siMic');
+  const micPopup = document.getElementById('micPopup');
+
+  // ── Headphones ───────────────────────────────────────────────────────
+  let selHpId = null;
+
+  function setHp(on) {
+    siHp.classList.toggle('si-on',  on);
+    siHp.classList.toggle('si-off', !on);
+  }
+  async function refreshHp() {
+    if (!navigator.mediaDevices) { setHp(false); return; }
+    try {
+      const devs = await navigator.mediaDevices.enumerateDevices();
+      setHp(devs.filter(d => d.kind === 'audiooutput' && d.deviceId !== 'default').length > 0);
+    } catch { setHp(false); }
+  }
+  refreshHp();
+  if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', refreshHp);
+
+  async function openHpPopup() {
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    const outputs = devs.filter(d => d.kind === 'audiooutput');
+    hpPopup.innerHTML = '';
+    outputs.forEach((d, i) => {
+      const row = document.createElement('div');
+      row.className = 'mic-popup-item' + (d.deviceId === selHpId ? ' si-active' : '');
+      row.textContent = d.label || ('Speaker ' + (i + 1));
+      row.addEventListener('click', e => {
+        e.stopPropagation();
+        selHpId = d.deviceId;
+        hpPopup.querySelectorAll('.mic-popup-item').forEach(r => r.classList.remove('si-active'));
+        row.classList.add('si-active');
+        hpPopup.style.display = 'none';
+        setHp(true);
+      });
+      hpPopup.appendChild(row);
+    });
+    const hpMuteRow = document.createElement('div');
+    hpMuteRow.className = 'mic-popup-item' + (selHpId === 'mute' ? ' si-active' : '');
+    hpMuteRow.textContent = 'Mute';
+    hpMuteRow.addEventListener('click', e => {
+      e.stopPropagation();
+      selHpId = 'mute';
+      hpPopup.querySelectorAll('.mic-popup-item').forEach(r => r.classList.remove('si-active'));
+      hpMuteRow.classList.add('si-active');
+      hpPopup.style.display = 'none';
+      setHp(false);
+    });
+    hpPopup.appendChild(hpMuteRow);
+    hpPopup.style.display = 'block';
+  }
+
+  siHp.addEventListener('click', async e => {
+    e.stopPropagation();
+    if (hpPopup.style.display === 'block') { hpPopup.style.display = 'none'; return; }
+    openHpPopup();
+  });
+
+  // ── Microphone ───────────────────────────────────────────────────────
+  let micGranted = false;
+  let selMicId   = null;
+
+  function setMicOn(on) {
+    siMic.classList.toggle('si-on',  on);
+    siMic.classList.toggle('si-off', !on);
+  }
+
+  if (navigator.permissions) {
+    navigator.permissions.query({ name: 'microphone' }).then(p => {
+      if (p.state === 'granted') { micGranted = true; setMicOn(true); }
+      p.addEventListener('change', () => { micGranted = p.state === 'granted'; setMicOn(micGranted); });
+    }).catch(() => {});
+  }
+
+  async function requestMic() {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      s.getTracks().forEach(t => t.stop());
+      micGranted = true; setMicOn(true);
+    } catch { micGranted = false; setMicOn(false); }
+  }
+
+  async function openPopup() {
+    const devs   = await navigator.mediaDevices.enumerateDevices();
+    const inputs = devs.filter(d => d.kind === 'audioinput');
+    micPopup.innerHTML = '';
+    inputs.forEach((d, i) => {
+      const row = document.createElement('div');
+      row.className = 'mic-popup-item' + (d.deviceId === selMicId ? ' si-active' : '');
+      row.textContent = d.label || ('Microphone ' + (i + 1));
+      row.addEventListener('click', e => {
+        e.stopPropagation();
+        selMicId = d.deviceId;
+        micPopup.querySelectorAll('.mic-popup-item').forEach(r => r.classList.remove('si-active'));
+        row.classList.add('si-active');
+        micPopup.style.display = 'none';
+        setMicOn(true);
+      });
+      micPopup.appendChild(row);
+    });
+    const micMuteRow = document.createElement('div');
+    micMuteRow.className = 'mic-popup-item' + (selMicId === 'mute' ? ' si-active' : '');
+    micMuteRow.textContent = 'Mute';
+    micMuteRow.addEventListener('click', e => {
+      e.stopPropagation();
+      selMicId = 'mute';
+      micPopup.querySelectorAll('.mic-popup-item').forEach(r => r.classList.remove('si-active'));
+      micMuteRow.classList.add('si-active');
+      micPopup.style.display = 'none';
+      setMicOn(false);
+    });
+    micPopup.appendChild(micMuteRow);
+    micPopup.style.display = 'block';
+  }
+
+  siMic.addEventListener('click', async e => {
+    e.stopPropagation();
+    if (micPopup.style.display === 'block') { micPopup.style.display = 'none'; return; }
+    if (!micGranted) await requestMic();
+    if (micGranted) openPopup();
+  });
+
+  document.addEventListener('click', () => { micPopup.style.display = 'none'; hpPopup.style.display = 'none'; });
+
+  // ── Location ─────────────────────────────────────────────────────────
+  const siLocation = document.getElementById('siLocation');
+  let locationOn = localStorage.getItem('locationEnabled') === 'true';
+
+  function setLocation(on) {
+    locationOn = on;
+    localStorage.setItem('locationEnabled', String(on));
+    siLocation.classList.toggle('si-on',  on);
+    siLocation.classList.toggle('si-off', !on);
+  }
+
+  setLocation(locationOn);
+
+  siLocation.addEventListener('click', () => {
+    if (!locationOn) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          () => setLocation(true),
+          () => setLocation(false)
+        );
+      } else { setLocation(false); }
+    } else {
+      setLocation(false);
+    }
+  });
+});
+
+// ── Global swipe navigation ───────────────────────────────────────────────
+(function () {
+  let sx = 0, sy = 0, skip = false;
+  document.addEventListener('touchstart', e => {
+    skip = !!e.target.closest('button, .extend-btn, .app-nav');
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (skip) return;
+    const dx = e.changedTouches[0].clientX - sx;
+    const dy = e.changedTouches[0].clientY - sy;
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    if (Math.max(ax, ay) < 60) return;
+    if (ay > ax && dy < 0) window.navigateToSpeak();           // swipe up → speak
+  }, { passive: true });
+}());
+</script>
+
+  <!-- ── Status icons ─────────────────────────────────────────────────── -->
+  <div class="status-icons">
+    <div class="si si-on" id="siWifi" title="Network">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+        <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+        <circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/>
+      </svg>
+    </div>
+    <div class="si-hp-wrap">
+      <div class="si si-off" id="siHeadphones" title="Headphones">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+          <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/>
+          <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+        </svg>
+        <svg class="si-slash" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="3" y1="3" x2="21" y2="21"/>
+        </svg>
+      </div>
+      <div class="mic-popup" id="hpPopup"></div>
+    </div>
+    <div class="si si-off" id="siLocation" title="Location">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+      </svg>
+      <svg class="si-slash" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="3" y1="3" x2="21" y2="21"/>
+      </svg>
+    </div>
+    <div class="si-mic-wrap">
+      <button class="si si-off si-mic-btn" id="siMic" title="Microphone">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+        </svg>
+        <svg class="si-slash" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="3" y1="3" x2="21" y2="21"/>
+        </svg>
+      </button>
+      <div class="mic-popup" id="micPopup"></div>
+    </div>
+  </div>
+
+  <style>
+    body.dark .timer-col { opacity: 0.38; }
+    body.dark .controls  { opacity: 0.42; transition: opacity 0.25s; }
+    body.dark .controls:hover,
+    body.dark .controls.lit { opacity: 1; }
+  </style>
+  <script>
+    (function () {
+      const ctrls = document.querySelector('.controls');
+      if (!ctrls) return;
+      let timer;
+      ctrls.addEventListener('touchstart', () => {
+        clearTimeout(timer);
+        ctrls.classList.add('lit');
+      }, { passive: true });
+      ctrls.addEventListener('touchend', () => {
+        timer = setTimeout(() => ctrls.classList.remove('lit'), 1200);
+      }, { passive: true });
+    }());
+  </script>
+<script type="module" src="../shared/supabase.js"></script>
+</body>
+</html>

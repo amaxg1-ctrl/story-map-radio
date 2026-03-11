@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Story Ecosystem</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Theme tokens ───────────────────────────────────────────────────── */
+    :root {
+      --bg-a:          #eceef2;
+      --bg-b:          #d8dae1;
+      --hex-bg:        rgba(158,161,170,0.20);
+      --circle-border: rgba(88,90,102,0.22);
+      --label-color:   rgba(88,90,102,0.80);
+      --title-color:   rgba(88,90,102,0.38);
+      --glint:         rgba(255,136,0,0.90);
+      --line-color:    rgba(88,90,102,0.22);
+
+      /* Colour scale: shade-0 = deep orange-purple → shade-5 = very light */
+      --shade-0: rgba(128, 40, 16, 0.90);
+      --shade-1: rgba(160, 68, 34, 0.74);
+      --shade-2: rgba(186, 96, 54, 0.58);
+      --shade-3: rgba(204, 126, 76, 0.42);
+      --shade-4: rgba(216, 152, 98, 0.30);
+      --shade-5: rgba(226, 174, 116, 0.20);
+      --shade-6: rgba(232, 190, 135, 0.12);
+    }
+
+    body.dark {
+      --bg-a:          #13141a;
+      --bg-b:          #0f1014;
+      --hex-bg:        rgba(42,44,58,0.55);
+      --circle-border: rgba(255,255,255,0.18);
+      --label-color:   rgba(255,255,255,0.72);
+      --title-color:   rgba(255,255,255,0.28);
+      --glint:         rgba(160,80,255,0.90);
+      --line-color:    rgba(200,202,218,0.20);
+
+      /* Dark mode: deep violet-purple scale */
+      --shade-0: rgba(68, 14, 112, 0.95);
+      --shade-1: rgba(88, 28, 148, 0.82);
+      --shade-2: rgba(106, 44, 172, 0.66);
+      --shade-3: rgba(122, 62, 192, 0.50);
+      --shade-4: rgba(138, 82, 206, 0.36);
+      --shade-5: rgba(152, 102, 218, 0.22);
+      --shade-6: rgba(163, 116, 224, 0.13);
+    }
+
+    html, body {
+      min-height: 100vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    body {
+      background: linear-gradient(150deg, var(--bg-a) 0%, var(--bg-b) 100%);
+      transition: background 0.3s;
+    }
+
+    .page {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 72px 32px 120px;
+    }
+
+    .page-title {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.36em;
+      text-transform: uppercase;
+      color: var(--title-color);
+      margin-bottom: 48px;
+      transition: color 0.3s;
+    }
+
+    /* ── Hex grid container ─────────────────────────────────────────────────
+       Row 1 (top=0):    ALOUD  ALONG  ECHO  REGION        (left: 0,180,360,540)
+       Row 2 (top=156):     SPEAK  LISTEN  FRAGMENT         (left: 90,270,450)
+       Row 3 (top=312):  TRACE  OUT  AGAIN  CALL            (left: 0,180,360,540)
+       W=180, H=208, row step=156. Right edge=720, bottom=520.
+    ─────────────────────────────────────────────────────────────────────── */
+    .hex-grid {
+      position: relative;
+      width: 720px;
+      height: 520px;
+      margin: 0 auto;
+    }
+
+    .hex-lines {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .hex-line {
+      stroke: var(--line-color);
+      stroke-width: 1;
+      stroke-dasharray: 3 7;
+      transition: stroke 0.3s;
+    }
+
+    /* ── Hex outer shell (positioned, not clipped) ──────────────────────── */
+    .hex {
+      position: absolute;
+      width: 180px;
+      height: 208px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 1;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── Hex visible shape (scaled to 92% so gaps show dotted lines) ────── */
+    .hex-inner {
+      width: 92%;
+      height: 92%;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      background: var(--hex-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.3s, filter 0.18s, transform 0.18s;
+    }
+
+    .hex:hover .hex-inner {
+      filter: brightness(1.08);
+      transform: scale(1.06);
+    }
+
+    /* ── Colour shade classes ────────────────────────────────────────────── */
+    .hex-shade-0 .hex-inner { background: var(--shade-0); }
+    .hex-shade-1 .hex-inner { background: var(--shade-1); }
+    .hex-shade-2 .hex-inner { background: var(--shade-2); }
+    .hex-shade-3 .hex-inner { background: var(--shade-3); }
+    .hex-shade-4 .hex-inner { background: var(--shade-4); }
+    .hex-shade-5 .hex-inner { background: var(--shade-5); }
+    .hex-shade-6 .hex-inner { background: var(--shade-6); }
+
+    /* ── Hex positions ──────────────────────────────────────────────────── */
+    .hex-aloud    { left:   0px; top:   0px; }
+    .hex-along    { left: 180px; top:   0px; }
+    .hex-echo     { left: 360px; top:   0px; }
+    .hex-region   { left: 540px; top:   0px; }
+    .hex-speak    { left:  90px; top: 156px; }
+    .hex-listen   { left: 270px; top: 156px; }
+    .hex-fragment { left: 450px; top: 156px; }
+    .hex-trace    { left:   0px; top: 312px; }
+    .hex-out      { left: 180px; top: 312px; }
+    .hex-again    { left: 360px; top: 312px; }
+    .hex-call     { left: 540px; top: 312px; }
+
+    /* ── Card inner layout ──────────────────────────────────────────────── */
+    .card-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 11px;
+      width: 76%;
+    }
+
+    /* ── Circle ─────────────────────────────────────────────────────────── */
+    .card-circle {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      border: 1.5px solid var(--circle-border);
+      flex-shrink: 0;
+      position: relative;
+      transition: border-color 0.3s;
+    }
+
+    .card-circle::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        transparent 0%,
+        transparent 55%,
+        var(--glint) 82%,
+        rgba(255,255,255,0.85) 96%,
+        var(--glint) 97.5%,
+        transparent 100%
+      );
+      mask:         radial-gradient(transparent 42px, black 43px, black 45px, transparent 46px);
+      -webkit-mask: radial-gradient(transparent 42px, black 43px, black 45px, transparent 46px);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      pointer-events: none;
+    }
+
+    .hex:hover .card-circle::after {
+      opacity: 1;
+      animation: ring-glint 3.4s linear infinite;
+    }
+
+    @keyframes ring-glint {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    /* ── Spread label ────────────────────────────────────────────────────── */
+    .card-label {
+      display: flex;
+      justify-content: space-evenly;
+      align-items: center;
+      width: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      color: var(--label-color);
+      transition: color 0.3s;
+    }
+
+    .card-label span { display: block; }
+
+    /* ── Zoom overlay ────────────────────────────────────────────────────── */
+    #zoomOverlay {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      overflow: hidden;
+      box-shadow: 0 12px 60px rgba(0,0,0,0.6);
+    }
+
+    #zoomOverlay iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    .prog-link {
+      position: fixed;
+      bottom: 14px;
+      left: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--title-color);
+      text-decoration: none;
+      opacity: 0.48;
+      transition: opacity 0.2s, color 0.3s;
+      z-index: 50;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .prog-link:hover { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <div class="page">
+
+    <div class="page-title">Public Stories</div>
+
+    <div class="hex-grid" id="hexGrid">
+
+      <!-- ── Dotted separator lines ─────────────────────────────────────── -->
+      <!--
+        Hex centers:
+        Row 1:  ALOUD(90,104)  ALONG(270,104)  ECHO(450,104)  REGION(630,104)
+        Row 2:  SPEAK(180,260) LISTEN(360,260)  FRAGMENT(540,260)
+        Row 3:  TRACE(90,416)  OUT(270,416)     AGAIN(450,416)  CALL(630,416)
+      -->
+      <svg class="hex-lines" viewBox="0 0 720 520" xmlns="http://www.w3.org/2000/svg">
+        <!-- Row 1 horizontal -->
+        <line class="hex-line" x1="90"  y1="104" x2="270" y2="104"/>
+        <line class="hex-line" x1="270" y1="104" x2="450" y2="104"/>
+        <line class="hex-line" x1="450" y1="104" x2="630" y2="104"/>
+        <!-- Row 2 horizontal -->
+        <line class="hex-line" x1="180" y1="260" x2="360" y2="260"/>
+        <line class="hex-line" x1="360" y1="260" x2="540" y2="260"/>
+        <!-- Row 3 horizontal -->
+        <line class="hex-line" x1="90"  y1="416" x2="270" y2="416"/>
+        <line class="hex-line" x1="270" y1="416" x2="450" y2="416"/>
+        <line class="hex-line" x1="450" y1="416" x2="630" y2="416"/>
+        <!-- Row 1 → Row 2 diagonals -->
+        <line class="hex-line" x1="90"  y1="104" x2="180" y2="260"/>
+        <line class="hex-line" x1="270" y1="104" x2="180" y2="260"/>
+        <line class="hex-line" x1="270" y1="104" x2="360" y2="260"/>
+        <line class="hex-line" x1="450" y1="104" x2="360" y2="260"/>
+        <line class="hex-line" x1="450" y1="104" x2="540" y2="260"/>
+        <line class="hex-line" x1="630" y1="104" x2="540" y2="260"/>
+        <!-- Row 2 → Row 3 diagonals -->
+        <line class="hex-line" x1="180" y1="260" x2="90"  y2="416"/>
+        <line class="hex-line" x1="180" y1="260" x2="270" y2="416"/>
+        <line class="hex-line" x1="360" y1="260" x2="270" y2="416"/>
+        <line class="hex-line" x1="360" y1="260" x2="450" y2="416"/>
+        <line class="hex-line" x1="540" y1="260" x2="450" y2="416"/>
+        <line class="hex-line" x1="540" y1="260" x2="630" y2="416"/>
+      </svg>
+
+      <!-- ── Row 1 ──────────────────────────────────────────────────────── -->
+
+      <div class="hex hex-shade-1 hex-aloud" data-src="./aloud/index.html">
+        <div class="hex-inner">
+          <div class="card-inner">
+            <div class="card-circle"></div>
+            <div class="card-label"><span>A</span><span>L</span><span>O</span><span>U</span><span>D</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hex hex-shade-3 hex-along" data-src="./along/index.html">
+        <div class="hex-inner">
+          <div class="card-inner">
+            <div class="card-circle"></div>
+            <div class="card-label"><span>A</span><span>L</span><span>O</span><span>N</span><span>G</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hex hex-shade-5 hex-echo" data-src="./echo/index.html">
+        <div class="hex-inner">
+          <div class="card-inner">
+            <div class="card-circle"></div>
+            <div class="card-label"><span>E</span><span>C</span><span>H</span><span>O</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hex hex-region" data-src="./region/index.html">
+        <div class="hex-inner">
+          <div class="card-inner">
+            <div class="card-circle"></div>
+            <div class="card-label"><span>R</span><span>E</span><span>G</span><span>I</span><span>O</span><span>N</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Row 2 ──────────────────────────────────────────────────────── -->
+
+      <div class="hex hex-shade-0 hex-speak" data-src="./speak/index.html">
+        <div class="hex-inner">
+          <div class="card-inner">
+            <div class="card-circle"></div>
+            <div class="card-label"><span>S</span><span>P</span><span>E</span><span>A</span><span>K</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hex hex-shade-2 hex-listen" data-src="./listen/index.html">
+        <div class="hex-inner">
+          <div class="card-inner">
+            <div class="card-circle"></div>
+            <div class="card-label"><span>L</span><span>I</span><span>S</span><span>T</span><span>E</span><span>N</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hex hex-shade-4 hex-fragment" data-src="./fragment/index.html">
+        <div class="hex-inner">
+          <div class="card-inner">
+            <div class="card-circle"></div>
+            <div class="card-label"><span>F</span><span>R</span><span>A</span><span>G</span><span>M</span><span>E</span><span>N</span><span>T</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Row 3 ──────────────────────────────────────────────────────── -->
+
+      <div class="hex hex-trace" data-src="./trace/index.html">
+        <div class="hex-inner">
+          <div class="card-inner">
+            <div class="card-circle"></div>
+            <div class="card-label"><span>T</span><span>R</span><span>A</span><span>C</span><span>E</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hex hex-shade-1 hex-out" data-src="./out/index.html">
+        <div class="hex-inner">
+          <div class="card-inner">
+            <div class="card-circle"></div>
+            <div class="card-label"><span>O</span><span>U</span><span>T</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hex hex-shade-3 hex-again" data-src="./again/index.html">
+        <div class="hex-inner">
+          <div class="card-inner">
+            <div class="card-circle"></div>
+            <div class="card-label"><span>A</span><span>G</span><span>A</span><span>I</span><span>N</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hex hex-shade-5 hex-call" data-src="./call/index.html">
+        <div class="hex-inner">
+          <div class="card-inner">
+            <div class="card-circle"></div>
+            <div class="card-label"><span>C</span><span>A</span><span>L</span><span>L</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <a class="prog-link" href="./progression/index.html">Progression</a>
+
+  <div id="zoomOverlay">
+    <iframe id="zoomFrame" src="" title=""></iframe>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  const GRID_W = 720;
+  const GRID_H = 520;
+
+  function fitGrid() {
+    const grid   = document.getElementById('hexGrid');
+    const availW = window.innerWidth  - 64;
+    const availH = window.innerHeight - 200;
+    grid.style.zoom = Math.min(1, availW / GRID_W, availH / GRID_H);
+  }
+
+  fitGrid();
+  window.addEventListener('resize', fitGrid);
+
+  function applyTheme(t) {
+    document.body.classList.toggle('dark', t === 'dark');
+  }
+
+  applyTheme(localStorage.getItem('theme') || 'light');
+  window.addEventListener('storage', e => {
+    if (e.key === 'theme') applyTheme(e.newValue || 'light');
+  });
+  window.addEventListener('focus', () => {
+    applyTheme(localStorage.getItem('theme') || 'light');
+  });
+
+  const overlay   = document.getElementById('zoomOverlay');
+  const zoomFrame = document.getElementById('zoomFrame');
+  const EASE = 'cubic-bezier(0.4,0,0.2,1)';
+  const DUR  = 440;
+  let savedRect = null;
+  let zoomed    = false;
+
+  document.querySelectorAll('.hex[data-src]').forEach(hex => {
+    hex.addEventListener('click', () => {
+      if (zoomed) return;
+      openZoom(hex.getBoundingClientRect(), hex.dataset.src);
+    });
+  });
+
+  function openZoom(rect, src) {
+    zoomed    = true;
+    savedRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+
+    const dark = localStorage.getItem('theme') === 'dark';
+    overlay.style.background = dark
+      ? 'linear-gradient(150deg, #13141a 0%, #0f1014 100%)'
+      : 'linear-gradient(150deg, #eceef2 0%, #d8dae1 100%)';
+
+    overlay.style.transition   = 'none';
+    overlay.style.display      = 'block';
+    overlay.style.left         = rect.left   + 'px';
+    overlay.style.top          = rect.top    + 'px';
+    overlay.style.width        = rect.width  + 'px';
+    overlay.style.height       = rect.height + 'px';
+    overlay.style.borderRadius = '0px';
+
+    overlay.getBoundingClientRect();
+
+    requestAnimationFrame(() => { requestAnimationFrame(() => {
+      overlay.style.transition = [
+        `top ${DUR}ms ${EASE}`, `left ${DUR}ms ${EASE}`,
+        `width ${DUR}ms ${EASE}`, `height ${DUR}ms ${EASE}`,
+      ].join(', ');
+      overlay.style.left   = '0';
+      overlay.style.top    = '0';
+      overlay.style.width  = '100vw';
+      overlay.style.height = '100vh';
+    }); });
+
+    setTimeout(() => { zoomFrame.src = src; }, DUR);
+  }
+
+  function closeZoom() {
+    if (!zoomed || !savedRect) return;
+    applyTheme(localStorage.getItem('theme') || 'light');
+
+    const FADE = 260;
+    zoomFrame.style.transition = `opacity ${FADE}ms ease-out`;
+    zoomFrame.style.opacity    = '0';
+
+    setTimeout(() => {
+      overlay.style.transition = [
+        `top ${DUR}ms ${EASE}`, `left ${DUR}ms ${EASE}`,
+        `width ${DUR}ms ${EASE}`, `height ${DUR}ms ${EASE}`,
+      ].join(', ');
+      overlay.style.left   = savedRect.left   + 'px';
+      overlay.style.top    = savedRect.top    + 'px';
+      overlay.style.width  = savedRect.width  + 'px';
+      overlay.style.height = savedRect.height + 'px';
+
+      setTimeout(() => {
+        overlay.style.display      = 'none';
+        zoomFrame.src              = '';
+        zoomFrame.style.transition = '';
+        zoomFrame.style.opacity    = '';
+        savedRect = null;
+        zoomed    = false;
+      }, DUR + 30);
+    }, FADE);
+  }
+
+  window.addEventListener('message', e => {
+    if (e.data !== 'goIndex') return;
+    try {
+      const href = zoomFrame.contentWindow.location.href;
+      document.querySelectorAll('.hex[data-src]').forEach(hex => {
+        const path = hex.dataset.src.replace('./', '/');
+        if (href.includes(path)) {
+          hex.scrollIntoView({ behavior: 'instant', block: 'center' });
+          const r = hex.getBoundingClientRect();
+          savedRect = { left: r.left, top: r.top, width: r.width, height: r.height };
+        }
+      });
+    } catch (err) {}
+    setTimeout(closeZoom, 500);
+  });
+
+}());
+</script>
+
+</body>
+</html>

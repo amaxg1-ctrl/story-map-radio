@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>REGION</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-a:  #eceef2;
+      --bg-b:  #d8dae1;
+      --label: rgba(88,90,102,0.55);
+    }
+
+    body.dark {
+      --bg-a:  #13141a;
+      --bg-b:  #0f1014;
+      --label: rgba(255,255,255,0.30);
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: linear-gradient(150deg, var(--bg-a) 0%, var(--bg-b) 100%);
+      transition: background 0.3s;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0; left: 0;
+      cursor: grab;
+    }
+
+    canvas.grabbing { cursor: grabbing; }
+    canvas.pointer  { cursor: pointer; }
+
+    .app-name {
+      position: fixed;
+      top: 26px; left: 50%;
+      transform: translateX(-50%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 11px; font-weight: 400;
+      letter-spacing: 0.5em; text-transform: uppercase;
+      color: var(--label);
+      transition: color 0.3s;
+      pointer-events: none;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="hexCanvas"></canvas>
+  <div class="app-name">REGION</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── App links (11 apps matching index-elocute hex grid) ─────────────────────
+  const APPS = [
+    { name: 'ALOUD',   href: '../aloud/'   },   // 0
+    { name: 'ALONG',   href: '../along/'   },   // 1
+    { name: 'ECHO',    href: '../echo/'    },   // 2
+    { name: 'REGION',  href: '../region/'  },   // 3
+    { name: 'SPEAK',   href: '../speak/'   },   // 4
+    { name: 'LISTEN',  href: '../listen/'  },   // 5
+    { name: 'ELOCUTE', href: '../elocute/' },   // 6
+    { name: 'TRACE',   href: '../trace/'   },   // 7
+    { name: 'OUT',     href: '../out/'     },   // 8
+    { name: 'AGAIN',   href: '../again/'   },   // 9
+    { name: 'CALL',    href: '../call/'    },   // 10
+  ];
+
+  // ── Cluster shape ───────────────────────────────────────────────────────────
+  // 11 hexes in a 4-3-4 layout (flat-top, odd-col shifted DOWN):
+  //
+  //  Row 0 (even cols):  (0,0)     (2,0)     (4,0)     (6,0)
+  //  Row ~½ (odd cols):       (1,0)     (3,0)     (5,0)
+  //  Row 1 (even cols):  (0,1)     (2,1)     (4,1)     (6,1)
+  //
+  const CLUSTER = [
+    [0, 0],   // ALOUD
+    [2, 0],   // ALONG
+    [4, 0],   // ECHO
+    [6, 0],   // REGION
+    [1, 0],   // SPEAK
+    [3, 0],   // LISTEN
+    [5, 0],   // ELOCUTE
+    [0, 1],   // TRACE
+    [2, 1],   // OUT
+    [4, 1],   // AGAIN
+    [6, 1],   // CALL
+  ];
+
+  // Clusters repeat every ~200 hexes (20 cols × 10 rows = 200 cells per tile).
+  // Origin at (6, 4) — even column for consistent parity.
+  const PERIOD_COL = 20;
+  const PERIOD_ROW = 10;
+  const OLC = 6;
+  const OLR = 4;
+
+  // Build a fast lookup: "dc,dr" → app index
+  const CLUSTER_MAP = new Map(CLUSTER.map(([dc, dr], i) => [`${dc},${dr}`, i]));
+
+  function getClusterApp(col, row) {
+    const lc = ((col % PERIOD_COL) + PERIOD_COL) % PERIOD_COL;
+    const lr = ((row % PERIOD_ROW) + PERIOD_ROW) % PERIOD_ROW;
+    return CLUSTER_MAP.get(`${lc - OLC},${lr - OLR}`) ?? -1;
+  }
+
+  // ── Empty clusters (10 groups of 11 hexes, spaced ~80 hexes apart) ────
+  const EMPTY_PERIOD_COL = 800;
+  const EMPTY_PERIOD_ROW = 10;
+  const EMPTY_ORIGINS = [
+    [ 40, 4], [120, 4], [200, 4], [280, 4], [360, 4],
+    [440, 4], [520, 4], [600, 4], [680, 4], [760, 4],
+  ];
+
+  const EMPTY_SET = new Set();
+  for (const [olc, olr] of EMPTY_ORIGINS) {
+    for (const [dc, dr] of CLUSTER) {
+      EMPTY_SET.add(`${olc + dc},${olr + dr}`);
+    }
+  }
+
+  function isEmptyCluster(col, row) {
+    const lc = ((col % EMPTY_PERIOD_COL) + EMPTY_PERIOD_COL) % EMPTY_PERIOD_COL;
+    const lr = ((row % EMPTY_PERIOD_ROW) + EMPTY_PERIOD_ROW) % EMPTY_PERIOD_ROW;
+    return EMPTY_SET.has(`${lc},${lr}`);
+  }
+
+  // ── Canvas / state ──────────────────────────────────────────────────────────
+  const canvas = document.getElementById('hexCanvas');
+  const ctx    = canvas.getContext('2d');
+
+  let hexSize = 52;
+  let offsetX = 0;
+  let offsetY = 0;
+  const MIN_SIZE = 20;
+  const MAX_SIZE = 160;
+
+  let hoverCol = null;
+  let hoverRow = null;
+
+  // ── Theme ───────────────────────────────────────────────────────────────────
+  function isDark() { return document.body.classList.contains('dark'); }
+
+  function applyTheme(t) {
+    document.body.classList.toggle('dark', t === 'dark');
+    draw();
+  }
+  applyTheme(localStorage.getItem('theme') || 'light');
+  window.addEventListener('storage', e => {
+    if (e.key === 'theme') applyTheme(e.newValue || 'light');
+  });
+
+  // ── Resize ──────────────────────────────────────────────────────────────────
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    const w   = window.innerWidth;
+    const h   = window.innerHeight;
+    canvas.width  = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    canvas.style.width  = w + 'px';
+    canvas.style.height = h + 'px';
+    draw();
+  }
+
+  // ── Pixel → hex ─────────────────────────────────────────────────────────────
+  function pixelToHex(px, py) {
+    const R    = hexSize;
+    const colW = R * 1.5;
+    const rowH = R * Math.sqrt(3);
+    const wx   = px - offsetX;
+    const wy   = py - offsetY;
+
+    const colEst = Math.round((wx - R) / colW);
+    let bestCol = colEst, bestRow = 0, bestDist = Infinity;
+
+    for (let dc = -2; dc <= 2; dc++) {
+      const c = colEst + dc;
+      const rowEst = Math.round((wy - (c & 1 ? rowH / 2 : 0)) / rowH);
+      for (let dr = -1; dr <= 1; dr++) {
+        const r   = rowEst + dr;
+        const hcx = c * colW + R;
+        const hcy = r * rowH + (c & 1 ? rowH / 2 : 0);
+        const d   = Math.hypot(wx - hcx, wy - hcy);
+        if (d < bestDist) { bestDist = d; bestCol = c; bestRow = r; }
+      }
+    }
+    return { col: bestCol, row: bestRow };
+  }
+
+  // ── Draw ────────────────────────────────────────────────────────────────────
+  function draw() {
+    const dpr  = window.devicePixelRatio || 1;
+    const w    = canvas.width  / dpr;
+    const h    = canvas.height / dpr;
+    const R    = hexSize;
+    const colW = R * 1.5;
+    const rowH = R * Math.sqrt(3);
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const c0 = Math.floor(-offsetX / colW) - 1;
+    const c1 = Math.ceil((w - offsetX) / colW) + 1;
+    const r0 = Math.floor(-offsetY / rowH) - 1;
+    const r1 = Math.ceil((h - offsetY) / rowH) + 1;
+
+    const dark = isDark();
+
+    // colours
+    const gridStroke    = dark ? 'rgba(255,255,255,0.22)' : 'rgba(80,85,100,0.38)';
+    const clusterFill   = dark ? 'rgba(255,255,255,0.06)' : 'rgba(70,75,95,0.09)';
+    const clusterHover  = dark ? 'rgba(255,255,255,0.16)' : 'rgba(70,75,95,0.20)';
+    const clusterStroke = dark ? 'rgba(255,255,255,0.55)' : 'rgba(70,75,95,0.65)';
+    const labelCol      = dark ? 'rgba(255,255,255,0.65)' : 'rgba(50,54,72,0.75)';
+    const labelHover    = dark ? 'rgba(255,255,255,0.95)' : 'rgba(30,34,52,0.95)';
+
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
+
+    for (let col = c0; col <= c1; col++) {
+      for (let row = r0; row <= r1; row++) {
+        const appIdx  = getClusterApp(col, row);
+        const hcx     = col * colW + R;
+        const hcy     = row * rowH + (col & 1 ? rowH / 2 : 0);
+        const isHover = col === hoverCol && row === hoverRow;
+
+        hexPath(hcx, hcy, R - 2);
+
+        if (appIdx >= 0) {
+          // ── cluster hex ──────────────────────────────────────────────────
+          ctx.fillStyle = isHover ? clusterHover : clusterFill;
+          ctx.fill();
+
+          ctx.setLineDash([]);
+          ctx.strokeStyle = isHover ? clusterStroke : (dark ? 'rgba(255,255,255,0.38)' : 'rgba(70,75,95,0.50)');
+          ctx.lineWidth   = isHover ? 2 : 1.5;
+          ctx.stroke();
+
+          // app name label (only when hex is big enough to read)
+          if (R >= 24) {
+            const fs = Math.max(7, Math.min(11, R * 0.21));
+            ctx.font         = `500 ${fs}px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif`;
+            ctx.textAlign    = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle    = isHover ? labelHover : labelCol;
+            ctx.fillText(APPS[appIdx].name, hcx, hcy);
+          } else {
+            // tiny dot indicator
+            ctx.beginPath();
+            ctx.arc(hcx, hcy, Math.max(2, R * 0.10), 0, Math.PI * 2);
+            ctx.fillStyle = clusterStroke;
+            ctx.fill();
+          }
+        } else if (isEmptyCluster(col, row)) {
+          // ── empty cluster hex: solid outline, no label ─────────────────
+          ctx.fillStyle = clusterFill;
+          ctx.fill();
+          ctx.setLineDash([]);
+          ctx.strokeStyle = dark ? 'rgba(255,255,255,0.28)' : 'rgba(70,75,95,0.35)';
+          ctx.lineWidth   = 1.5;
+          ctx.stroke();
+        } else {
+          // ── regular hex: dashed outline ──────────────────────────────────
+          ctx.setLineDash([5, 7]);
+          ctx.strokeStyle = gridStroke;
+          ctx.lineWidth   = 1.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function hexPath(cx, cy, r) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i;
+      const x = cx + r * Math.cos(a);
+      const y = cy + r * Math.sin(a);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+  }
+
+  // ── Pointer input ───────────────────────────────────────────────────────────
+  const active    = new Map();
+  let lastMid     = null;
+  let lastDist    = 0;
+  let dragStart   = null;
+  let isDragging  = false;
+
+  function getMid() {
+    const pts = [...active.values()];
+    return { x: pts.reduce((s, p) => s + p.x, 0) / pts.length,
+             y: pts.reduce((s, p) => s + p.y, 0) / pts.length };
+  }
+  function getDist() {
+    if (active.size < 2) return 0;
+    const [a, b] = active.values();
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  }
+
+  canvas.addEventListener('pointerdown', e => {
+    canvas.setPointerCapture(e.pointerId);
+    active.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    lastMid  = getMid();
+    lastDist = getDist();
+    if (active.size === 1) {
+      dragStart  = { x: e.clientX, y: e.clientY };
+      isDragging = false;
+    }
+    canvas.classList.add('grabbing');
+    canvas.classList.remove('pointer');
+  });
+
+  canvas.addEventListener('pointermove', e => {
+    if (!active.has(e.pointerId)) return;
+    active.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    const mid  = getMid();
+    const dist = getDist();
+
+    offsetX += mid.x - lastMid.x;
+    offsetY += mid.y - lastMid.y;
+
+    if (lastDist > 4 && dist > 4) {
+      const prev  = hexSize;
+      hexSize     = Math.max(MIN_SIZE, Math.min(MAX_SIZE, hexSize * (dist / lastDist)));
+      const ratio = hexSize / prev;
+      offsetX = mid.x + (offsetX - mid.x) * ratio;
+      offsetY = mid.y + (offsetY - mid.y) * ratio;
+    }
+
+    lastMid  = mid;
+    lastDist = dist;
+
+    if (dragStart && Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y) > 6) {
+      isDragging = true;
+    }
+
+    // Update hover for single-touch / mouse drag
+    if (active.size === 1) {
+      const h = pixelToHex(e.clientX, e.clientY);
+      if (h.col !== hoverCol || h.row !== hoverRow) {
+        hoverCol = h.col; hoverRow = h.row;
+      }
+    }
+
+    draw();
+  });
+
+  canvas.addEventListener('pointerup', e => {
+    const wasSingle = active.size === 1;
+    active.delete(e.pointerId);
+    lastMid  = active.size ? getMid() : null;
+    lastDist = getDist();
+
+    if (wasSingle && !isDragging && dragStart) {
+      // Treat as tap/click → navigate if cluster hex
+      const h      = pixelToHex(e.clientX, e.clientY);
+      const appIdx = getClusterApp(h.col, h.row);
+      if (appIdx >= 0) window.location.href = APPS[appIdx].href;
+    }
+
+    dragStart  = null;
+    isDragging = false;
+
+    if (active.size === 0) {
+      canvas.classList.remove('grabbing');
+      updateCursorForMouse(e.clientX, e.clientY);
+    }
+  });
+
+  canvas.addEventListener('pointercancel', e => {
+    active.delete(e.pointerId);
+    lastMid    = null; lastDist = 0;
+    dragStart  = null; isDragging = false;
+    canvas.classList.remove('grabbing');
+  });
+
+  // ── Mouse hover (desktop only) ──────────────────────────────────────────────
+  function updateCursorForMouse(px, py) {
+    const h      = pixelToHex(px, py);
+    const onLink = getClusterApp(h.col, h.row) >= 0;
+    canvas.classList.toggle('pointer', onLink);
+  }
+
+  canvas.addEventListener('mousemove', e => {
+    if (active.size > 0) return; // pointer is down, skip pure mouse hover
+    const h = pixelToHex(e.clientX, e.clientY);
+    if (h.col !== hoverCol || h.row !== hoverRow) {
+      hoverCol = h.col; hoverRow = h.row;
+      draw();
+    }
+    updateCursorForMouse(e.clientX, e.clientY);
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    hoverCol = null; hoverRow = null;
+    canvas.classList.remove('pointer');
+    draw();
+  });
+
+  // ── Wheel zoom ──────────────────────────────────────────────────────────────
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.1 : 0.91;
+    const prev   = hexSize;
+    hexSize      = Math.max(MIN_SIZE, Math.min(MAX_SIZE, hexSize * factor));
+    const ratio  = hexSize / prev;
+    offsetX = e.clientX + (offsetX - e.clientX) * ratio;
+    offsetY = e.clientY + (offsetY - e.clientY) * ratio;
+    draw();
+  }, { passive: false });
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  window.addEventListener('resize', resize);
+  resize();
+
+}());
+</script>
+<script type="module" src="../shared/supabase.js"></script>
+</body>
+</html>

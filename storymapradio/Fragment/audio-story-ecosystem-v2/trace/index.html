@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRACE</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-a: #eceef2; --bg-b: #d8dae1;
+      --text:       rgba(88,90,102,0.82);
+      --text-muted: #b0b3bc;
+      --btn-bg:     rgba(158,161,170,0.26);
+      --btn-border: rgba(255,255,255,0.55);
+      --btn-inset:  rgba(255,255,255,0.45);
+      --label:      rgba(88,90,102,0.55);
+      --tile-filter: grayscale(1) brightness(1.08) contrast(0.88);
+    }
+
+    body.dark {
+      --bg-a: #13141a; --bg-b: #0f1014;
+      --text:       rgba(200,202,218,0.85);
+      --text-muted: rgba(140,142,158,0.75);
+      --btn-bg:     rgba(42,44,58,0.55);
+      --btn-border: rgba(255,255,255,0.10);
+      --btn-inset:  rgba(255,255,255,0.05);
+      --label:      rgba(255,255,255,0.30);
+      --tile-filter: grayscale(1) brightness(0.38) contrast(1.18) invert(1);
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      user-select: none; -webkit-user-select: none;
+    }
+
+    #map {
+      width: 100%; height: 100%;
+    }
+
+    #map .leaflet-tile {
+      filter: var(--tile-filter);
+      transition: filter 0.3s;
+    }
+
+    .leaflet-control-attribution {
+      font-size: 9px;
+      opacity: 0.30;
+      background: transparent !important;
+      color: var(--label) !important;
+    }
+
+    .leaflet-control-zoom a {
+      color: var(--label) !important;
+      background: var(--btn-bg) !important;
+      border-color: var(--btn-border) !important;
+    }
+
+    /* ── App label ──────────────────────────────────────────────────────── */
+    .app-name {
+      position: fixed;
+      top: 26px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px; font-weight: 400;
+      letter-spacing: 0.5em; text-transform: uppercase;
+      color: var(--label);
+      transition: color 0.3s;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    /* ── Settings bar ───────────────────────────────────────────────────── */
+    .settings-bar {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 0;
+      background: var(--btn-bg);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--btn-border); border-radius: 40px;
+      padding: 5px 6px 5px 10px; z-index: 1000;
+      box-shadow: 0 4px 28px rgba(0,0,0,0.12);
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    body.dark .settings-bar { opacity: 0.42; transition: opacity 0.25s; }
+    body.dark .settings-bar:hover,
+    body.dark .settings-bar.lit { opacity: 1; }
+
+    .settings-arrows {
+      display: flex; flex-direction: column; align-items: center; gap: 1px;
+      margin-right: 10px;
+    }
+
+    .arrow-btn {
+      width: 20px; height: 19px; border-radius: 4px; border: none;
+      background: transparent; color: var(--text-muted);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 0; transition: color 0.18s; -webkit-tap-highlight-color: transparent;
+    }
+    .arrow-btn:hover { color: var(--text); }
+    .arrow-btn svg { width: 9px; height: 9px; pointer-events: none; }
+
+    .settings-label {
+      font-size: 9.5px; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--text-muted); min-width: 108px; text-align: center;
+      transition: color 0.3s;
+    }
+
+    .settings-actions { display: flex; gap: 6px; margin-left: 10px; }
+
+    .action-btn {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 1.5px solid var(--btn-border);
+      background: var(--btn-bg);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.18s, box-shadow 0.18s, color 0.18s, border-color 0.18s;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+      outline: none; -webkit-tap-highlight-color: transparent;
+    }
+    .action-btn svg { width: 20px; height: 20px; pointer-events: none; }
+
+    .sun-btn  { color: rgb(255,136,0); }
+    .moon-btn { color: rgb(160,80,255); }
+
+    .sun-btn.active {
+      background: rgba(255,136,0,0.16); border-color: rgba(255,136,0,0.55);
+      box-shadow: 0 0 0 3px rgba(255,136,0,0.13), 0 0 18px rgba(255,136,0,0.40),
+                  0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+    }
+    .moon-btn.active {
+      background: rgba(160,80,255,0.16); border-color: rgba(160,80,255,0.55);
+      box-shadow: 0 0 0 3px rgba(160,80,255,0.13), 0 0 18px rgba(160,80,255,0.44),
+                  0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+    }
+
+    #btnGo {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.14em;
+      color: rgba(160,80,255,0.62);
+      border-color: rgba(160,80,255,0.28);
+      background: rgba(160,80,255,0.08);
+    }
+    #btnStay {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.14em;
+      color: rgba(255,136,0,0.62);
+      border-color: rgba(255,136,0,0.28);
+      background: rgba(255,136,0,0.08);
+    }
+
+    /* ── Country hover popup ─────────────────────────────────────────── */
+    .trace-popup {
+      pointer-events: none;
+      z-index: 800;
+    }
+    .trace-popup .leaflet-popup-content-wrapper {
+      background: var(--bg-a);
+      border: 1px solid var(--btn-border);
+      border-radius: 14px;
+      box-shadow: 0 6px 32px rgba(0,0,0,0.18);
+      padding: 0;
+      pointer-events: none;
+    }
+    .trace-popup .leaflet-popup-tip {
+      background: var(--bg-a);
+      border: 1px solid var(--btn-border);
+    }
+    .trace-popup .leaflet-popup-content {
+      margin: 10px 12px;
+      min-width: 180px;
+    }
+    .trace-popup-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text);
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .trace-popup-box {
+      background: var(--btn-bg);
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 5px;
+      font-size: 9px;
+      letter-spacing: 0.06em;
+      color: var(--text);
+      line-height: 1.4;
+    }
+    .trace-popup-box:last-child { margin-bottom: 0; }
+  </style>
+</head>
+<body>
+
+  <div id="map"></div>
+  <div class="app-name">TRACE</div>
+
+  <!-- ── Settings bar ──────────────────────────────────────────────────── -->
+  <div class="settings-bar">
+    <div class="settings-arrows">
+      <button class="arrow-btn" id="arrowUp" aria-label="Previous setting">
+        <svg viewBox="0 0 9 9" fill="currentColor"><polygon points="4.5,1 8.5,7 0.5,7"/></svg>
+      </button>
+      <button class="arrow-btn" id="arrowDown" aria-label="Next setting">
+        <svg viewBox="0 0 9 9" fill="currentColor"><polygon points="4.5,8 0.5,2 8.5,2"/></svg>
+      </button>
+    </div>
+
+    <span class="settings-label" id="settingsLabel">APPEARANCE</span>
+
+    <div class="settings-actions" id="themeActions">
+      <button class="action-btn sun-btn" id="btnSun" title="Light mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4.2" fill="currentColor" stroke="none"/>
+          <line x1="12" y1="2"  x2="12" y2="5"/>  <line x1="12" y1="19" x2="12" y2="22"/>
+          <line x1="2"  y1="12" x2="5"  y2="12"/> <line x1="19" y1="12" x2="22" y2="12"/>
+          <line x1="4.2"  y1="4.2"  x2="6.4"  y2="6.4"/>
+          <line x1="17.6" y1="17.6" x2="19.8" y2="19.8"/>
+          <line x1="19.8" y1="4.2"  x2="17.6" y2="6.4"/>
+          <line x1="6.4"  y1="17.6" x2="4.2"  y2="19.8"/>
+        </svg>
+      </button>
+      <button class="action-btn moon-btn" id="btnMoon" title="Dark mode">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="settings-actions" id="indexActions" style="display:none">
+      <button class="action-btn" id="btnGo"   title="Leave to index">LEAVE</button>
+      <button class="action-btn" id="btnStay" title="Stay here">STAY</button>
+    </div>
+  </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ── Theme ──────────────────────────────────────────────────────────────────
+  const btnSun  = document.getElementById('btnSun');
+  const btnMoon = document.getElementById('btnMoon');
+
+  function setTheme(t) {
+    localStorage.setItem('theme', t);
+    document.body.classList.toggle('dark', t === 'dark');
+    btnSun.classList.toggle('active',  t === 'light');
+    btnMoon.classList.toggle('active', t === 'dark');
+  }
+
+  setTheme(localStorage.getItem('theme') || 'light');
+  window.addEventListener('storage', e => {
+    if (e.key === 'theme') setTheme(e.newValue || 'light');
+  });
+
+  btnSun.addEventListener('click',  () => setTheme('light'));
+  btnMoon.addEventListener('click', () => setTheme('dark'));
+
+  // ── Settings carousel ──────────────────────────────────────────────────────
+  const PAGES = ['APPEARANCE', 'NAVIGATION'];
+  let settingPage = 0;
+
+  function showSettingPage(n) {
+    settingPage = ((n % PAGES.length) + PAGES.length) % PAGES.length;
+    document.getElementById('settingsLabel').textContent = PAGES[settingPage];
+    document.getElementById('themeActions').style.display  = settingPage === 0 ? '' : 'none';
+    document.getElementById('indexActions').style.display  = settingPage === 1 ? '' : 'none';
+  }
+
+  document.getElementById('arrowUp').addEventListener('click',   () => showSettingPage(settingPage - 1));
+  document.getElementById('arrowDown').addEventListener('click', () => showSettingPage(settingPage + 1));
+
+  document.getElementById('btnGo').addEventListener('click', () => {
+    if (window.parent !== window) { window.parent.postMessage('goIndex', '*'); return; }
+    window.location.href = '../fragment-index.html';
+  });
+  document.getElementById('btnStay').addEventListener('click', () => showSettingPage(0));
+
+  // ── Dark-mode bar lit-on-touch ─────────────────────────────────────────────
+  (function () {
+    const bar = document.querySelector('.settings-bar');
+    if (!bar) return;
+    let timer;
+    bar.addEventListener('touchstart', () => {
+      bar.classList.add('lit');
+      clearTimeout(timer);
+      timer = setTimeout(() => bar.classList.remove('lit'), 2200);
+    }, { passive: true });
+  }());
+
+  // ── Map ────────────────────────────────────────────────────────────────────
+  const map = L.map('map', {
+    center: [20, 0],
+    zoom: 2,
+    minZoom: 2,
+    maxZoom: 19,
+    zoomControl: true,
+    attributionControl: true,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(map);
+
+  // ── Country storytelling data ─────────────────────────────────────────────
+  const COUNTRY_DATA = {
+    'Afghanistan': ['Dastan epic storytelling','Rabab musical storytelling traditions','Pashto tappay folk poetry'],
+    'Albania': ['Epic songs of the Kreshnikë (heroic cycle)','Lahuta bardic singing'],
+    'Algeria': ['Chaabi poetic singing','Berber (Amazigh) storytelling traditions'],
+    'Angola': ['Mbundu storytelling','Oral praise poetry and proverbs'],
+    'Argentina': ['Gaucho payada improvisational song','Indigenous Mapuche storytelling'],
+    'Australia': ['Aboriginal songlines','Dreamtime creation narratives'],
+    'Austria': ['Alpine folk ballads','Tyrolean narrative songs'],
+    'Bangladesh': ['Baul mystic song traditions','Folk epics and village storytelling'],
+    'Belarus': ['Folk epic songs','Village storytelling traditions'],
+    'Belgium': ['Flemish folk ballads','Oral carnival traditions'],
+    'Belize': ['Garifuna storytelling and song','Mayan oral cosmologies'],
+    'Benin': ['Vodun ritual storytelling','Griot traditions'],
+    'Bolivia': ['Quechua myth cycles','Aymara oral histories'],
+    'Bosnia and Herzegovina': ['Guslar epic singing','South Slavic heroic ballads'],
+    'Bosnia and Herz.': ['Guslar epic singing','South Slavic heroic ballads'],
+    'Botswana': ['Tswana folktales','Praise poetry'],
+    'Brazil': ['Cordel oral poetry traditions','Indigenous Amazonian myth cycles'],
+    'Bulgaria': ['Epic folk songs','Village storytelling gatherings'],
+    'Burkina Faso': ['Griot epic traditions','Mossi oral histories'],
+    'Burundi': ['Royal drum storytelling traditions','Praise poetry'],
+    'Cambodia': ['Reamker epic storytelling','Shadow-puppet narrative traditions'],
+    'Cameroon': ['Griot storytelling','Village myth traditions'],
+    'Canada': ['First Nations creation stories','Inuit oral histories'],
+    'Chad': ['Saharan epic traditions','Tribal praise poetry'],
+    'Chile': ['Mapuche myth traditions','Payador singing'],
+    'China': ['Shuochang storytelling traditions','Epic minority oral traditions'],
+    'Colombia': ['Indigenous myth cycles','Cumbia narrative songs'],
+    'Congo': ['Bantu folktales','Praise poetry'],
+    'Republic of the Congo': ['Bantu folktales','Praise poetry'],
+    'Dem. Rep. Congo': ['Epic storytelling','Musical storytelling traditions'],
+    'Democratic Republic of the Congo': ['Epic storytelling','Musical storytelling traditions'],
+    'Costa Rica': ['Indigenous Bribri cosmology','Folk storytelling'],
+    'Croatia': ['Gusle epic singing','Heroic ballads'],
+    'Cuba': ['Afro-Cuban religious storytelling','Santería chants and myths'],
+    'Czechia': ['Folk legends','Ballad traditions'],
+    'Czech Republic': ['Folk legends','Ballad traditions'],
+    'Denmark': ['Nordic ballads','Folk storytelling'],
+    'Ecuador': ['Quechua oral histories','Indigenous myth traditions'],
+    'Egypt': ['Hakawati storytelling','Epic folk poetry'],
+    'El Salvador': ['Indigenous myth traditions','Folk storytelling'],
+    'Eritrea': ['Tigrinya epic songs','Oral historical poetry'],
+    'Estonia': ['Runic song traditions','Folk myth storytelling'],
+    'Ethiopia': ['Oromo oral law and poetry','Amharic epic traditions'],
+    'Finland': ['Kalevala rune singing','Folk epic poetry'],
+    'France': ['Troubadour poetic traditions','Folk ballads'],
+    'Gambia': ['Mandinka griots','Kora epic storytelling'],
+    'Georgia': ['Polyphonic epic songs','Folk myth storytelling'],
+    'Germany': ['Folk ballads','Medieval epic storytelling'],
+    'Ghana': ['Anansi spider tales','Griot traditions'],
+    'Greece': ['Homeric epic recitation','Folk storytelling'],
+    'Guatemala': ['Maya cosmological narratives','Popol Vuh oral traditions'],
+    'Guinea': ['Mandé griot storytelling','Epic song traditions'],
+    'Guinea-Bissau': ['Griot traditions','Folk storytelling'],
+    'Haiti': ['Vodou storytelling traditions','Folklore narratives'],
+    'Honduras': ['Garifuna storytelling','Indigenous myth traditions'],
+    'Hungary': ['Folk ballads','Village storytelling'],
+    'Iceland': ['Saga storytelling','Epic recitation traditions'],
+    'India': ['Ramayana recitation traditions','Baul singing','Vedic oral chanting'],
+    'Indonesia': ['Wayang storytelling','Epic Ramayana traditions'],
+    'Iran': ['Shahnameh recitation','Naqqāli storytelling'],
+    'Iraq': ['Epic tribal poetry','Mesopotamian myth traditions'],
+    'Ireland': ['Seanchaí storytelling','Bardic poetry'],
+    'Israel': ['Biblical oral storytelling traditions','Jewish cantorial chant'],
+    'Italy': ['Folk epic ballads','Cantastorie storytelling'],
+    'Japan': ['Biwa hōshi epic recitation','Rakugo storytelling'],
+    'Jordan': ['Bedouin poetry traditions','Tribal storytelling'],
+    'Kazakhstan': ['Epic bardic singing','Dombra storytelling songs'],
+    'Kenya': ['Maasai oral history','Praise poetry'],
+    'Kyrgyzstan': ['Manas epic recitation','Bardic storytelling'],
+    'Laos': ['Lam storytelling songs','Folk epics'],
+    'Latvia': ['Daina folk song traditions','Myth storytelling'],
+    'Lebanon': ['Hakawati storytelling tradition','Epic folk poetry'],
+    'Lesotho': ['Praise poetry','Folk storytelling'],
+    'Liberia': ['Griot storytelling','Village folktales'],
+    'Lithuania': ['Sutartinės songs','Folk myth traditions'],
+    'Madagascar': ['Hainteny oral poetry','Myth storytelling'],
+    'Malawi': ['Praise poetry','Village folktales'],
+    'Malaysia': ['Hikayat epic storytelling','Shadow puppet narratives'],
+    'Mali': ['Sundiata epic tradition','Griot storytelling'],
+    'Mexico': ['Nahua myth traditions','Indigenous storytelling'],
+    'Mongolia': ['Heroic epic recitation','Throat-song storytelling'],
+    'Montenegro': ['Gusle epic singing','Heroic ballads'],
+    'Morocco': ['Berber storytelling','Gnawa musical storytelling'],
+    'Mozambique': ['Tribal folktales','Praise poetry'],
+    'Myanmar': ['Jataka storytelling','Folk epics'],
+    'Namibia': ['San storytelling traditions','Praise poetry'],
+    'Nepal': ['Himalayan epic recitations','Folk storytelling'],
+    'Netherlands': ['Folk legends','Storytelling festivals'],
+    'New Zealand': ['Māori whakapapa genealogical storytelling','Haka narrative traditions'],
+    'Nicaragua': ['Indigenous myth traditions','Folk storytelling'],
+    'Niger': ['Tuareg epic poetry','Griot traditions'],
+    'Nigeria': ['Yoruba myth storytelling','Igbo folktales'],
+    'North Macedonia': ['Epic folk songs','Village storytelling'],
+    'Macedonia': ['Epic folk songs','Village storytelling'],
+    'Norway': ['Norse saga storytelling','Folk ballads'],
+    'Oman': ['Bedouin epic poetry','Seafaring storytelling'],
+    'Pakistan': ['Punjabi epic poetry (Heer Ranjha)','Sufi qawwali narratives'],
+    'Panama': ['Kuna myth storytelling','Indigenous cosmologies'],
+    'Papua New Guinea': ['Tribal myth cycles','Ancestral storytelling'],
+    'Paraguay': ['Guarani myth traditions','Folk storytelling'],
+    'Peru': ['Quechua myth traditions','Andean storytelling'],
+    'Philippines': ['Epic chants (Hudhud, Darangen)','Folk storytelling'],
+    'Poland': ['Folk ballads','Village legends'],
+    'Portugal': ['Folk epic ballads','Maritime storytelling'],
+    'Romania': ['Doina epic songs','Folk storytelling'],
+    'Russia': ['Bylina epic songs','Folk storytelling'],
+    'Rwanda': ['Praise poetry','Royal storytelling traditions'],
+    'Saudi Arabia': ['Nabati poetry','Bedouin storytelling'],
+    'Senegal': ['Griot epic traditions','Kora storytelling'],
+    'Serbia': ['Gusle epic singing','Heroic ballads'],
+    'Sierra Leone': ['Griot traditions','Village storytelling'],
+    'Somalia': ['Epic camel poetry','Oral law traditions'],
+    'South Africa': ['Praise poetry','Zulu storytelling'],
+    'S. Sudan': ['Tribal myth traditions','Praise poetry'],
+    'South Sudan': ['Tribal myth traditions','Praise poetry'],
+    'Spain': ['Romancero ballads','Folk storytelling'],
+    'Sri Lanka': ['Epic storytelling traditions','Buddhist narrative chants'],
+    'Sudan': ['Epic praise poetry','Tribal storytelling'],
+    'Sweden': ['Nordic folk ballads','Saga storytelling'],
+    'Switzerland': ['Alpine folk legends','Storytelling traditions'],
+    'Syria': ['Hakawati storytelling','Epic poetry'],
+    'Tajikistan': ['Persian epic storytelling','Dastan traditions'],
+    'Tanzania': ['Swahili storytelling','Praise poetry'],
+    'Thailand': ['Ramakien epic storytelling','Folk narrative songs'],
+    'Togo': ['Griot storytelling','Village folktales'],
+    'Tunisia': ['Arab epic poetry','Folk storytelling'],
+    'Turkey': ['Ashik bardic singing','Epic storytelling'],
+    'Turkmenistan': ['Dastan epic traditions','Bardic storytelling'],
+    'Uganda': ['Praise poetry','Folktales'],
+    'Ukraine': ['Kobzar epic singing','Folk storytelling'],
+    'United Arab Emirates': ['Nabati poetry','Bedouin storytelling'],
+    'United Kingdom': ['Celtic bardic traditions','Folk ballads'],
+    'United States': ['Indigenous storytelling traditions','Appalachian ballads'],
+    'United States of America': ['Indigenous storytelling traditions','Appalachian ballads'],
+    'Uruguay': ['Gaucho payada singing','Folk storytelling'],
+    'Uzbekistan': ['Dastan epic storytelling','Bardic traditions'],
+    'Venezuela': ['Indigenous myth storytelling','Folk narrative song'],
+    'Vietnam': ['Epic oral poetry','Folk storytelling'],
+    'Viet Nam': ['Epic oral poetry','Folk storytelling'],
+    'Yemen': ['Tribal poetry traditions','Storytelling'],
+    'Zambia': ['Praise poetry','Village folktales'],
+    'Zimbabwe': ['Mbira storytelling traditions','Praise poetry'],
+  };
+
+  // ── Colour palette for countries ──────────────────────────────────────────
+  const COLORS = [
+    '#c45828','#a04422','#ba6036','#cc7e4c','#d89862',
+    '#e2ae74','#7a3814','#944e2a','#ae6840','#c88458',
+    '#6e2e10','#884020','#a25a38','#bc7450','#d69068',
+    '#e8a880','#5e2410','#783a20','#925030','#ac6848',
+  ];
+  const COLORS_DARK = [
+    '#440e70','#581c94','#6a2cac','#7a3ec0','#8a52ce',
+    '#9a66da','#3a0860','#4e1880','#62289a','#7640b0',
+    '#300650','#441472','#582890','#6c3ca8','#8052be',
+    '#9468d0','#260440','#3c1060','#521e80','#683298',
+  ];
+
+  function getCountryColor(name) {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = ((h << 5) - h + name.charCodeAt(i)) | 0;
+    const isDark = document.body.classList.contains('dark');
+    const pal = isDark ? COLORS_DARK : COLORS;
+    return pal[Math.abs(h) % pal.length];
+  }
+
+  // ── Popup builder ─────────────────────────────────────────────────────────
+  function buildPopupHTML(name, items) {
+    let html = '<div class="trace-popup-title">' + name + '</div>';
+    items.forEach(item => {
+      html += '<div class="trace-popup-box">' + item + '</div>';
+    });
+    return html;
+  }
+
+  // ── Lookup helper (try multiple name variants) ────────────────────────────
+  function lookupCountry(props) {
+    const names = [
+      props.ADMIN, props.NAME, props.NAME_LONG, props.name,
+      props.NAME_EN, props.FORMAL_EN, props.BRK_NAME,
+    ].filter(Boolean);
+    for (const n of names) {
+      if (COUNTRY_DATA[n]) return { name: n, items: COUNTRY_DATA[n] };
+    }
+    return null;
+  }
+
+  // ── Load GeoJSON and render ───────────────────────────────────────────────
+  let geoLayer = null;
+  let activePopup = null;
+
+  fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+    .then(r => r.json())
+    .then(topo => topojsonFeature(topo, topo.objects.countries))
+    .then(geojson => {
+      if (!geojson || !geojson.features) return;
+      renderCountries(geojson);
+    })
+    .catch(err => console.warn('Could not load country boundaries', err));
+
+  // TopoJSON → GeoJSON converter (inline, no dependency)
+  function topojsonFeature(topology, object) {
+    // Minimal topojson decode
+    const arcs = topology.arcs;
+    const tf = topology.transform;
+    const scale = tf ? tf.scale : [1, 1];
+    const translate = tf ? tf.translate : [0, 0];
+
+    function decodeArc(arc) {
+      let x = 0, y = 0;
+      return arc.map(p => {
+        x += p[0]; y += p[1];
+        return [x * scale[0] + translate[0], y * scale[1] + translate[1]];
+      });
+    }
+
+    const decodedArcs = arcs.map(decodeArc);
+
+    function arcCoords(idx) {
+      if (idx >= 0) return decodedArcs[idx].slice();
+      const a = decodedArcs[~idx].slice().reverse();
+      return a;
+    }
+
+    function ringCoords(ring) {
+      let coords = [];
+      ring.forEach(idx => {
+        const c = arcCoords(idx);
+        if (coords.length > 0) c.shift();
+        coords = coords.concat(c);
+      });
+      return coords.map(c => [c[1], c[0]]); // [lat, lng] for Leaflet
+    }
+
+    function geoCoords(arcs, type) {
+      if (type === 'Polygon') return arcs.map(ringCoords);
+      if (type === 'MultiPolygon') return arcs.map(poly => poly.map(ringCoords));
+      return [];
+    }
+
+    // Country name lookup from numeric ID
+    const ID_NAMES = {4:'Afghanistan',8:'Albania',12:'Algeria',24:'Angola',32:'Argentina',36:'Australia',40:'Austria',50:'Bangladesh',112:'Belarus',56:'Belgium',84:'Belize',204:'Benin',68:'Bolivia',70:'Bosnia and Herzegovina',72:'Botswana',76:'Brazil',100:'Bulgaria',854:'Burkina Faso',108:'Burundi',116:'Cambodia',120:'Cameroon',124:'Canada',148:'Chad',152:'Chile',156:'China',170:'Colombia',178:'Republic of the Congo',180:'Democratic Republic of the Congo',188:'Costa Rica',191:'Croatia',192:'Cuba',203:'Czechia',208:'Denmark',218:'Ecuador',818:'Egypt',222:'El Salvador',232:'Eritrea',233:'Estonia',231:'Ethiopia',246:'Finland',250:'France',270:'Gambia',268:'Georgia',276:'Germany',288:'Ghana',300:'Greece',320:'Guatemala',324:'Guinea',624:'Guinea-Bissau',332:'Haiti',340:'Honduras',348:'Hungary',352:'Iceland',356:'India',360:'Indonesia',364:'Iran',368:'Iraq',372:'Ireland',376:'Israel',380:'Italy',392:'Japan',400:'Jordan',398:'Kazakhstan',404:'Kenya',417:'Kyrgyzstan',418:'Laos',428:'Latvia',422:'Lebanon',426:'Lesotho',430:'Liberia',440:'Lithuania',450:'Madagascar',454:'Malawi',458:'Malaysia',466:'Mali',484:'Mexico',496:'Mongolia',499:'Montenegro',504:'Morocco',508:'Mozambique',104:'Myanmar',516:'Namibia',524:'Nepal',528:'Netherlands',554:'New Zealand',558:'Nicaragua',562:'Niger',566:'Nigeria',807:'North Macedonia',578:'Norway',512:'Oman',586:'Pakistan',591:'Panama',598:'Papua New Guinea',600:'Paraguay',604:'Peru',608:'Philippines',616:'Poland',620:'Portugal',642:'Romania',643:'Russia',646:'Rwanda',682:'Saudi Arabia',686:'Senegal',688:'Serbia',694:'Sierra Leone',706:'Somalia',710:'South Africa',728:'South Sudan',724:'Spain',144:'Sri Lanka',729:'Sudan',752:'Sweden',756:'Switzerland',760:'Syria',762:'Tajikistan',834:'Tanzania',764:'Thailand',768:'Togo',788:'Tunisia',792:'Turkey',795:'Turkmenistan',800:'Uganda',804:'Ukraine',784:'United Arab Emirates',826:'United Kingdom',840:'United States of America',858:'Uruguay',860:'Uzbekistan',862:'Venezuela',704:'Vietnam',887:'Yemen',894:'Zambia',716:'Zimbabwe'};
+
+    const features = object.geometries.map(geom => {
+      const id = parseInt(geom.id, 10);
+      const name = ID_NAMES[id] || geom.properties?.name || ('ID ' + id);
+      const type = geom.type === 'Polygon' ? 'Polygon' : 'MultiPolygon';
+      const coordinates = geoCoords(geom.arcs, type);
+      return {
+        type: 'Feature',
+        properties: { NAME: name },
+        geometry: { type: type, coordinates: coordinates },
+      };
+    });
+
+    return { type: 'FeatureCollection', features: features };
+  }
+
+  function renderCountries(geojson) {
+    geoLayer = L.geoJSON(geojson, {
+      style: feature => {
+        const match = lookupCountry(feature.properties);
+        if (!match) return { fillOpacity: 0, weight: 0, opacity: 0 };
+        return {
+          fillColor: getCountryColor(match.name),
+          fillOpacity: 0.35,
+          weight: 1,
+          color: getCountryColor(match.name),
+          opacity: 0.5,
+        };
+      },
+      onEachFeature: (feature, layer) => {
+        const match = lookupCountry(feature.properties);
+        if (!match) return;
+
+        layer.on('mouseover', e => {
+          layer.setStyle({ fillOpacity: 0.55, weight: 2, opacity: 0.8 });
+          layer.bringToFront();
+          const html = buildPopupHTML(match.name, match.items);
+          activePopup = L.popup({
+            closeButton: false,
+            className: 'trace-popup',
+            offset: [0, -10],
+            autoPan: false,
+          })
+          .setLatLng(e.latlng)
+          .setContent(html)
+          .openOn(map);
+        });
+
+        layer.on('mousemove', e => {
+          if (activePopup) activePopup.setLatLng(e.latlng);
+        });
+
+        layer.on('mouseout', () => {
+          const m = lookupCountry(feature.properties);
+          if (!m) return;
+          layer.setStyle({
+            fillOpacity: 0.35,
+            weight: 1,
+            opacity: 0.5,
+          });
+          if (activePopup) { map.closePopup(activePopup); activePopup = null; }
+        });
+      },
+      coordsToLatLng: coords => L.latLng(coords[0], coords[1]),
+    }).addTo(map);
+  }
+
+  // ── Restyle countries on theme change ─────────────────────────────────────
+  const origSetTheme = setTheme;
+  setTheme = function(t) {
+    origSetTheme(t);
+    if (geoLayer) {
+      geoLayer.eachLayer(layer => {
+        if (!layer.feature) return;
+        const match = lookupCountry(layer.feature.properties);
+        if (!match) return;
+        layer.setStyle({
+          fillColor: getCountryColor(match.name),
+          color: getCountryColor(match.name),
+        });
+      });
+    }
+  };
+
+}());
+</script>
+<script type="module" src="../shared/supabase.js"></script>
+</body>
+</html>

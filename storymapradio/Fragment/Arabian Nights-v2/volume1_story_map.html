@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arabian Nights Volume 1 Story Map</title>
+  <style>
+    :root{--paper:#efe6d2;--ink:#1f1a16;--sea:#9dc4d6;--land:#cfbb8d;--edge:#7a6644;--grid:rgba(29,52,63,.14);--story:rgba(166,66,37,.72);--active:rgba(194,102,50,.92);--panel:rgba(247,241,226,.92);--muted:#62584b;--link:#7c2f1a}
+    *{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#d8ccb2,#efe6d2 45%,#eadfca);color:var(--ink);font-family:Georgia,"Times New Roman",serif}a{color:var(--link)}.page{max-width:1540px;margin:0 auto;padding:24px 20px 40px}.intro,.layout{display:grid;gap:20px}.intro{grid-template-columns:minmax(0,1.4fr) minmax(280px,.7fr);margin-bottom:18px}.layout{grid-template-columns:minmax(0,1.6fr) minmax(320px,.72fr)}.card,.sidebar,.stories{background:var(--panel);border:1px solid rgba(82,62,43,.24);border-radius:18px;box-shadow:0 14px 40px rgba(56,39,22,.1)}.card,.sidebar,.stories{padding:18px 20px}.title{font-size:clamp(1.8rem,3vw,3rem);margin:0 0 8px}.subtitle,.muted{color:var(--muted);line-height:1.45}.meta{margin:0;padding:0;list-style:none;display:grid;gap:10px}.meta strong{display:block;font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:2px}.map-shell{position:relative;border-radius:22px;overflow:hidden;background:linear-gradient(180deg,var(--sea),#6e99af);border:1px solid rgba(52,70,84,.3);min-height:820px}.map-note,.legend{position:absolute;z-index:3;background:rgba(244,236,221,.88);border:1px solid rgba(82,62,43,.18);border-radius:12px}.map-note{top:16px;left:18px;padding:10px 12px;max-width:430px;font-size:.92rem;line-height:1.35}.legend{right:16px;bottom:16px;padding:12px 14px;width:min(280px,calc(100% - 32px));font-size:.85rem;line-height:1.35}.row{display:flex;align-items:center;gap:10px;margin-top:8px}.sw{width:18px;height:18px;border-radius:4px}.sidebar{position:sticky;top:18px}#gridCanvas,#overlaySvg{position:absolute;inset:0;width:100%;height:100%;display:block}.list{display:grid;gap:8px;margin-top:14px}.slink{display:block;padding:10px 12px;text-decoration:none;border-radius:12px;border:1px solid rgba(124,47,26,.16);background:rgba(255,249,241,.76)}.stories{margin-top:20px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:16px}.story{padding:14px;border-radius:16px;border:1px solid rgba(82,62,43,.18);background:rgba(255,251,245,.82)}.story h3{font-size:1.04rem;margin:0 0 8px}.pillrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.pill{font-size:.78rem;padding:4px 8px;border-radius:999px;background:rgba(124,47,26,.08);border:1px solid rgba(124,47,26,.16)}.label{font-size:12px;font-weight:700;fill:rgba(31,26,22,.84);paint-order:stroke;stroke:rgba(239,230,210,.95);stroke-width:3px;pointer-events:none;letter-spacing:.04em}.hex{cursor:pointer}.selname{font-size:1.4rem;margin:0 0 4px}@media (max-width:1100px){.intro,.layout{grid-template-columns:1fr}.map-shell{min-height:620px}.sidebar{position:static}}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="intro">
+      <div class="card">
+        <h1 class="title">Arabian Nights, Volume 1 Story Map</h1>
+        <p class="subtitle">Middle East-centered, with adjoining story-world edges where Burton's first volume pushes into Central Asia, western India, the Arabian Sea, and deliberately approximate desert or island cells. Each filled hex is a 10 km story cell keyed to one place and one or more tales.</p>
+      </div>
+      <aside class="card">
+        <ul class="meta">
+          <li><strong>Map logic</strong>Best-effort literary geography, not strict historical cartography.</li>
+          <li><strong>Hex size</strong>10 km flat-to-flat cells in a simple local projection.</li>
+          <li><strong>Source basis</strong>Burton volume 1 contents from Project Gutenberg and Wikisource, with place assignments inferred from tale settings and summaries.</li>
+        </ul>
+      </aside>
+    </section>
+    <section class="layout">
+      <div class="map-shell">
+        <div class="map-note">Click a filled hex. Shared cells collect multiple tales when the same city, sea lane, desert, or uncertain island region carries more than one story.</div>
+        <canvas id="gridCanvas" width="1400" height="820"></canvas>
+        <svg id="overlaySvg" viewBox="0 0 1400 820" aria-label="Arabian Nights story map"></svg>
+        <div class="legend">
+          <strong>Legend</strong>
+          <div class="row"><span class="sw" style="background:rgba(166,66,37,.72)"></span><span>Filled story hex</span></div>
+          <div class="row"><span class="sw" style="background:rgba(29,52,63,.14)"></span><span>10 km background hex grid</span></div>
+          <div class="row"><span class="sw" style="background:#cfbb8d"></span><span>Hand-drawn land backdrop for orientation</span></div>
+        </div>
+      </div>
+      <aside class="sidebar">
+        <h2>Selected Hex</h2>
+        <div id="selection"></div>
+      </aside>
+    </section>
+    <section class="stories">
+      <h2>Story Directory</h2>
+      <p class="muted">The contents list for volume 1 follows Project Gutenberg and Wikisource volume 1 contents pages. Place assignments below are best-effort readings of where each story happens or is most plausibly anchored.</p>
+      <div class="grid" id="storyGrid"></div>
+    </section>
+  </div>
+  <script>
+    const WIDTH=1400,HEIGHT=820,HEX_SIZE_KM=5;
+    const extent={minLon:24,maxLon:78,minLat:12,maxLat:41};
+    const sourceLinks=[{label:"Project Gutenberg Volume 1",href:"https://www.gutenberg.org/files/3435/3435-h/3435-h.htm"},{label:"Wikisource Volume 1",href:"https://en.wikisource.org/wiki/The_Book_of_the_Thousand_Nights_and_a_Night/Volume_1"}];
+    const places=[
+      {id:"samarkand",name:"Samarkand",lat:39.6542,lon:66.9597,certainty:"named",note:"Shah Zaman's kingdom in the frame story."},
+      {id:"indo_persian_frontier",name:"Indo-Persian Frontier Court",lat:31.5497,lon:74.3436,certainty:"approximate",note:"A practical map stand-in for Shahryar's vast 'India and China' realm."},
+      {id:"mesopotamian_desert",name:"Mesopotamian Desert Cell",lat:31.95,lon:42.25,certainty:"approximate",note:"Used for unnamed inland settings per your instruction to place unknown fragments in desert where possible."},
+      {id:"med_coast",name:"Eastern Mediterranean Coast",lat:32.84,lon:34.99,certainty:"approximate",note:"Best-effort shore for the Fisherman tale."},
+      {id:"jundishapur",name:"Jundishapur / Western Persia",lat:32.29,lon:48.52,certainty:"approximate",note:"Used for the Duban court and nearby Persian settings."},
+      {id:"isfahan",name:"Central Persia",lat:32.6546,lon:51.668,certainty:"approximate",note:"A practical Persian urban cell for unnamed courtly domestic tales."},
+      {id:"lake_van",name:"Lake Van / Black Islands Stand-in",lat:38.5,lon:43.3,certainty:"mythic-approximate",note:"A water cell for the enchanted island-lake kingdom of the Ensorcelled Prince."},
+      {id:"baghdad",name:"Baghdad",lat:33.3152,lon:44.3661,certainty:"named",note:"The heaviest story cluster in volume 1."},
+      {id:"persian_gulf",name:"Persian Gulf",lat:26.55,lon:52.1,certainty:"approximate",note:"Sea-voyage cell for the Kalandars and the Eldest Lady."},
+      {id:"arabian_sea",name:"Arabian Sea / Magnetic Mountain",lat:18.9,lon:62.9,certainty:"mythic-approximate",note:"Used for the Magnetic Mountain and unknown sea islands."},
+      {id:"kashgar",name:"Kashgar / China-Edge Stand-in",lat:39.47,lon:75.99,certainty:"approximate",note:"Burton says 'a certain city of China'; Kashgar is the nearest Middle East-adjacent anchor."},
+      {id:"basra",name:"Basra",lat:30.5085,lon:47.7804,certainty:"named",note:"Major anchor for Nur al-Din and several Baghdad-adjacent tales."},
+      {id:"cairo",name:"Cairo",lat:30.0444,lon:31.2357,certainty:"named",note:"Major Egyptian anchor."},
+      {id:"damascus",name:"Damascus",lat:33.5138,lon:36.2765,certainty:"named",note:"Explicitly named in several embedded tales."},
+      {id:"mosul",name:"Mosul",lat:36.3456,lon:43.1575,certainty:"named",note:"Home city in the Jewish Doctor story."},
+      {id:"aleppo",name:"Aleppo",lat:36.2021,lon:37.1343,certainty:"named",note:"Caravan stop in the Jewish Doctor story."},
+      {id:"persian_frontier",name:"Persian Frontier Desert",lat:35.25,lon:53.35,certainty:"approximate",note:"Fallback inland cell for vague Persian-adjacent fragments."}
+    ];
+    const stories=[
+      {id:"story-shahryar",title:"Story of King Shahryar and His Brother",places:["samarkand","indo_persian_frontier"],note:"Frame tale spanning Shah Zaman's Samarkand and Shahryar's eastern kingdom."},
+      {id:"story-bull-ass",title:"Tale of the Bull and the Ass",places:["mesopotamian_desert"],note:"An unnamed household and farm setting placed in inland Mesopotamia."},
+      {id:"story-trader-jinni",title:"Tale of the Trader and the Jinni",places:["mesopotamian_desert"],note:"Placed in a caravan-desert cell where the merchant halts under a tree."},
+      {id:"story-first-shaykh",title:"The First Shaykh's Story",places:["mesopotamian_desert"],note:"Unnamed inland setting, grouped with the Trader tale's desert zone."},
+      {id:"story-second-shaykh",title:"The Second Shaykh's Story",places:["mesopotamian_desert"],note:"Also left in the unnamed inland desert cluster."},
+      {id:"story-third-shaykh",title:"The Third Shaykh's Story",places:["mesopotamian_desert"],note:"Also left in the unnamed inland desert cluster."},
+      {id:"story-fisherman",title:"The Fisherman and the Jinni",places:["med_coast"],note:"Mapped to an eastern Mediterranean coast cell as the nearest practical sea setting."},
+      {id:"story-duban",title:"Tale of the Wazir and the Sage Duban",places:["jundishapur"],note:"Best-fit Persian court cell."},
+      {id:"story-sindibad-falcon",title:"Story of King Sindibad and His Falcon",places:["isfahan"],note:"Placed in central Persia as a royal hunting-ground stand-in."},
+      {id:"story-husband-parrot",title:"Tale of the Husband and the Parrot",places:["isfahan"],note:"Placed in a generic Persian urban household cell."},
+      {id:"story-prince-ogress",title:"Tale of the Prince and the Ogress",places:["persian_frontier"],note:"Uncertain frontier setting pushed into inland Persia."},
+      {id:"story-ensorcelled-prince",title:"Tale of the Ensorcelled Prince",places:["lake_van"],note:"Mythic island-lake kingdom placed in water, per your unknown-island rule."},
+      {id:"story-porter",title:"The Porter and the Three Ladies of Baghdad",places:["baghdad"],note:"Firmly Baghdad."},
+      {id:"story-first-kalandar",title:"The First Kalandar's Tale",places:["persian_gulf","arabian_sea","baghdad"],note:"Sea travel, enchanted islands, and eventual arrival in Baghdad."},
+      {id:"story-second-kalandar",title:"The Second Kalandar's Tale",places:["persian_frontier","baghdad"],note:"Mapped between an uncertain inland eastern cell and Baghdad, where the tale is told."},
+      {id:"story-envier",title:"Tale of the Envier and the Envied",places:["persian_frontier"],note:"Burton leaves the city unnamed; this uses an inland Persian frontier cell."},
+      {id:"story-third-kalandar",title:"The Third Kalandar's Tale",places:["persian_gulf","arabian_sea","baghdad"],note:"Sea kingdom, magnetic-mountain waters, and Baghdad frame return."},
+      {id:"story-eldest-lady",title:"The Eldest Lady's Tale",places:["baghdad","persian_gulf"],note:"Baghdad frame plus maritime travel."},
+      {id:"story-portress",title:"Tale of the Portress",places:["baghdad"],note:"Baghdad household setting."},
+      {id:"story-porter-conclusion",title:"Conclusion of the Story of the Porter and the Three Ladies",places:["baghdad"],note:"Baghdad."},
+      {id:"story-three-apples",title:"Tale of the Three Apples",places:["baghdad","basra"],note:"Primarily Baghdad, with the Basra-linked apple quest."},
+      {id:"story-nur-al-din",title:"Tale of Nur al-Din Ali and His Son Badr al-Din Hasan",places:["cairo","basra","damascus"],note:"Explicitly runs between Cairo, Basra, and Damascus."},
+      {id:"story-hunchback",title:"The Hunchback's Tale",places:["kashgar"],note:"Burton says 'a certain city of China'; I anchor it at Kashgar as the nearest Middle East-facing edge."},
+      {id:"story-nazarene-broker",title:"The Nazarene Broker's Story",places:["kashgar","cairo"],note:"The tale is told in the hunchback frame city, but the broker is explicitly from Cairo."},
+      {id:"story-reeve",title:"The Reeve's Tale",places:["kashgar"],note:"Kept in the hunchback frame-city cell because the embedded place signal is weak."},
+      {id:"story-jewish-doctor",title:"Tale of the Jewish Doctor",places:["damascus","mosul","aleppo","cairo"],note:"Explicitly names Damascus, Mosul, Aleppo, and Cairo."},
+      {id:"story-tailor",title:"Tale of the Tailor",places:["kashgar","baghdad"],note:"The telling happens in the hunchback frame city, but the young man's central misadventure is in Baghdad."},
+      {id:"story-barber",title:"The Barber's Tale of Himself",places:["baghdad"],note:"Explicitly in Baghdad."},
+      {id:"story-barber-1",title:"The Barber's Tale of His First Brother",places:["baghdad"],note:"Explicitly in Baghdad."},
+      {id:"story-barber-2",title:"The Barber's Tale of His Second Brother",places:["baghdad"],note:"Placed with the barber cycle in Baghdad."},
+      {id:"story-barber-3",title:"The Barber's Tale of His Third Brother",places:["baghdad"],note:"Placed with the barber cycle in Baghdad."},
+      {id:"story-barber-4",title:"The Barber's Tale of His Fourth Brother",places:["baghdad"],note:"Placed with the barber cycle in Baghdad."},
+      {id:"story-barber-5",title:"The Barber's Tale of His Fifth Brother",places:["baghdad"],note:"Placed with the barber cycle in Baghdad."},
+      {id:"story-barber-6",title:"The Barber's Tale of His Sixth Brother",places:["baghdad"],note:"Burton explicitly returns this cycle to Baghdad."},
+      {id:"story-end-tailor",title:"The End of the Tailor's Tale",places:["kashgar"],note:"Returns to the hunchback frame city."}
+    ];
+    const labels=[["samarkand","Samarkand",10,-8],["kashgar","Kashgar",10,-8],["baghdad","Baghdad",10,-8],["basra","Basra",10,20],["damascus","Damascus",10,-8],["cairo","Cairo",10,-8],["lake_van","Lake Van",10,-8],["arabian_sea","Arabian Sea",10,20],["persian_gulf","Persian Gulf",10,20],["mesopotamian_desert","Mesopotamian Desert",10,22]];
+    const land=[[[24,31.5],[29.3,31.1],[33.3,31.9],[35.6,34],[39.2,37],[44.8,39.8],[52.2,37.4],[61,37.2],[70,40.3],[78,40.1],[78,28.8],[69.8,27.3],[61.2,25.3],[52,27.5],[44.2,31.3],[36.4,31.2],[30.4,29.5],[24,31.5]],[[34,31],[37.2,27.8],[43.7,28.4],[49.1,26.7],[55.3,24.3],[56.6,18.4],[51.5,13.3],[44.8,12.6],[40.6,17.8],[38.9,24.1],[35.3,29.8],[34,31]],[[31.2,31.3],[32.8,27.8],[35.7,21.2],[40.2,14.2],[44.5,12],[40.4,19.4],[35.6,26.7],[32.7,31],[31.2,31.3]]];
+    const water=[[[46.4,30.5],[50.4,29],[55,26],[56.7,24.6],[53.9,24.4],[50,26.2],[47.5,28],[46.4,30.5]],[[32.1,29.8],[34,24.4],[36.6,19.6],[39.8,13.5],[42.3,12],[40,17.6],[37.3,22.6],[34.5,27.4],[32.1,29.8]],[[41,38.9],[43.5,38.6],[43.8,37.4],[41.4,37.6],[41,38.9]]];
+    const placeMap=new Map(places.map(p=>[p.id,p])),storyMap=new Map(stories.map(s=>[s.id,s]));
+    places.forEach(p=>p.storyIds=[]);stories.forEach(s=>s.places.forEach(id=>placeMap.get(id).storyIds.push(s.id)));
+    const overlaySvg=document.getElementById("overlaySvg"),selection=document.getElementById("selection"),storyGrid=document.getElementById("storyGrid");
+    const project=(lon,lat)=>({x:((lon-extent.minLon)/(extent.maxLon-extent.minLon))*WIDTH,y:HEIGHT-((lat-extent.minLat)/(extent.maxLat-extent.minLat))*HEIGHT});
+    const pointPath=pts=>pts.map((p,i)=>{const q=project(p[0],p[1]);return`${i?"L":"M"}${q.x.toFixed(2)},${q.y.toFixed(2)}`}).join(" ")+" Z";
+    const lat0=(extent.minLat+extent.maxLat)/2,lon0=(extent.minLon+extent.maxLon)/2,kmPerLon=111.32*Math.cos(lat0*Math.PI/180),kmPerLat=110.574;
+    const localKm=(lon,lat)=>({x:(lon-lon0)*kmPerLon,y:(lat-lat0)*kmPerLat});
+    function cubeRound(q,r){let x=q,z=r,y=-x-z,rx=Math.round(x),ry=Math.round(y),rz=Math.round(z);const xd=Math.abs(rx-x),yd=Math.abs(ry-y),zd=Math.abs(rz-z);if(xd>yd&&xd>zd)rx=-ry-rz;else if(yd>zd)ry=-rx-rz;else rz=-rx-ry;return{q:rx,r:rz}}
+    function snap(place){const km=localKm(place.lon,place.lat),q=(2/3*km.x)/HEX_SIZE_KM,r=((-1/3*km.x)+(Math.sqrt(3)/3*km.y))/HEX_SIZE_KM,c=cubeRound(q,r),cxKm=HEX_SIZE_KM*1.5*c.q,cyKm=HEX_SIZE_KM*Math.sqrt(3)*(c.r+c.q/2),lon=lon0+cxKm/kmPerLon,lat=lat0+cyKm/kmPerLat,s=project(lon,lat);return{...c,cx:s.x,cy:s.y,lon,lat,hexId:`${c.q},${c.r}`}}
+    const radiusPx=(Math.abs(project(45.1,25).x-project(45,25).x)/(0.1*(111.32*Math.cos(25*Math.PI/180))))*HEX_SIZE_KM;
+    const hexPath=(cx,cy,r)=>Array.from({length:6},(_,i)=>{const a=Math.PI/180*60*i,x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);return`${i?"L":"M"}${x.toFixed(2)},${y.toFixed(2)}`}).join(" ")+" Z";
+    const hexes=places.map(p=>Object.assign({},p,snap(p)));
+    function renderStoryGrid(){storyGrid.innerHTML=stories.map(s=>`<article class="story" id="${s.id}"><h3>${s.title}</h3><p class="muted">${s.note}</p><div class="pillrow">${s.places.map(id=>`<span class="pill">${placeMap.get(id).name}</span>`).join("")}</div><div class="pillrow">${s.places.map(id=>`<span class="pill">${placeMap.get(id).certainty}</span>`).join("")}</div></article>`).join("")}
+    function renderSelection(id){const p=placeMap.get(id);selection.innerHTML=`<div class="selname">${p.name}</div><p class="muted">Lat ${p.lat.toFixed(2)}, Lon ${p.lon.toFixed(2)} | ${p.certainty}</p><p class="muted">${p.note}</p><div class="list">${p.storyIds.map(sid=>`<a class="slink" href="#${sid}">${storyMap.get(sid).title}</a>`).join("")}</div><p class="muted">Contents sources: ${sourceLinks.map(l=>`<a href="${l.href}" target="_blank" rel="noreferrer">${l.label}</a>`).join(" | ")}</p>`}
+    function activate(id){overlaySvg.querySelectorAll(".hex").forEach(n=>n.setAttribute("fill",n.dataset.place===id?"var(--active)":(placeMap.get(n.dataset.place).storyIds.length>4?"rgba(128,38,28,.8)":"var(--story)")));renderSelection(id)}
+    function renderOverlay(){let out="";land.forEach(p=>out+=`<path d="${pointPath(p)}" fill="var(--land)" stroke="var(--edge)" stroke-width="1.4" opacity=".95"></path>`);water.forEach(p=>out+=`<path d="${pointPath(p)}" fill="rgba(82,131,154,.82)" stroke="rgba(42,78,95,.7)" stroke-width="1"></path>`);hexes.forEach(p=>{const fill=p.storyIds.length>4?"rgba(128,38,28,.8)":"var(--story)";out+=`<path id="hex-${p.id}" class="hex" tabindex="0" data-place="${p.id}" d="${hexPath(p.cx,p.cy,radiusPx)}" fill="${fill}" stroke="rgba(54,21,14,.72)" stroke-width="1.1"></path>`});labels.forEach(([id,text,dx,dy])=>{const p=hexes.find(h=>h.id===id);out+=`<text class="label" x="${(p.cx+dx).toFixed(1)}" y="${(p.cy+dy).toFixed(1)}">${text}</text>`});overlaySvg.innerHTML=out;overlaySvg.querySelectorAll(".hex").forEach(n=>{n.addEventListener("click",()=>activate(n.dataset.place));n.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();activate(n.dataset.place)}})})}
+    function drawCanvas(){const ctx=document.getElementById("gridCanvas").getContext("2d");ctx.clearRect(0,0,WIDTH,HEIGHT);ctx.fillStyle="#9dc4d6";ctx.fillRect(0,0,WIDTH,HEIGHT);ctx.strokeStyle="rgba(255,255,255,.22)";ctx.lineWidth=1;for(let lon=extent.minLon;lon<=extent.maxLon;lon+=5){const a=project(lon,extent.minLat),b=project(lon,extent.maxLat);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}for(let lat=extent.minLat;lat<=extent.maxLat;lat+=5){const a=project(extent.minLon,lat),b=project(extent.maxLon,lat);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}ctx.strokeStyle="rgba(29,52,63,.14)";ctx.lineWidth=.45;ctx.beginPath();const seen=new Set();for(const center of hexes){for(let dq=-10;dq<=10;dq++){for(let dr=-10;dr<=10;dr++){const q=center.q+dq,r=center.r+dr,key=`${q},${r}`;if(seen.has(key))continue;seen.add(key);const cxKm=HEX_SIZE_KM*1.5*q,cyKm=HEX_SIZE_KM*Math.sqrt(3)*(r+q/2),lon=lon0+cxKm/kmPerLon,lat=lat0+cyKm/kmPerLat;if(lon<extent.minLon-1||lon>extent.maxLon+1||lat<extent.minLat-1||lat>extent.maxLat+1)continue;const p=project(lon,lat);for(let i=0;i<6;i++){const a=Math.PI/180*60*i,x=p.x+radiusPx*Math.cos(a),y=p.y+radiusPx*Math.sin(a);if(!i)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.closePath()}}}ctx.stroke();ctx.fillStyle="rgba(32,46,56,.72)";ctx.font="12px Georgia";for(let lon=extent.minLon;lon<=extent.maxLon;lon+=10){const p=project(lon,extent.minLat);ctx.fillText(`${lon}E`,p.x+4,HEIGHT-8)}for(let lat=extent.minLat+5;lat<=extent.maxLat;lat+=10){const p=project(extent.minLon,lat);ctx.fillText(`${lat}N`,8,p.y-4)}}
+    renderStoryGrid();drawCanvas();renderOverlay();activate("baghdad");
+  </script>
+</body>
+</html>

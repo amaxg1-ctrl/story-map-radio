@@ -1,0 +1,1869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arabian Nights · Volume I · Story Map</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --water:#6A9BB5;--land:#D4C4A0;--land-edge:#B8A882;--river:#5A8FA8;
+      --grid-line:rgba(60,50,40,0.09);--label-col:rgba(40,30,20,0.82);
+      --label-bg:rgba(212,196,160,0.72);--panel-bg:rgba(244,238,226,0.97);
+      --panel-border:rgba(120,90,50,0.18);--text:#2A2218;--text-muted:#6B5E4E;
+      --link:#7C2F1A;--title-col:rgba(60,50,40,0.40);
+      --btn-bg:rgba(212,196,160,0.55);--btn-hover:rgba(212,196,160,0.88);
+      /* density gradient: 1→2→3→5→10+ stories */
+      --d1:rgba(194,116,52,0.38);--d2:rgba(188,88,36,0.52);
+      --d3:rgba(174,66,24,0.66);--d5:rgba(156,44,14,0.80);--d10:rgba(134,28,8,0.90);
+      --hi:rgba(255,196,60,0.88);--hi-stroke:rgba(200,140,20,0.9);
+      --dim:rgba(140,100,70,0.18);
+    }
+    body.dark{
+      --water:#0C1A24;--land:#1A2820;--land-edge:#2A3828;--river:#1A3848;
+      --grid-line:rgba(200,210,220,0.05);--label-col:rgba(220,210,190,0.75);
+      --label-bg:rgba(20,30,24,0.6);--panel-bg:rgba(18,24,20,0.97);
+      --panel-border:rgba(200,190,160,0.10);--text:#D4C8B0;--text-muted:#8A7E6A;
+      --link:#D4944A;--title-col:rgba(200,190,170,0.25);
+      --btn-bg:rgba(40,50,44,0.55);--btn-hover:rgba(60,70,60,0.88);
+      --d1:rgba(200,130,50,0.30);--d2:rgba(210,120,40,0.45);
+      --d3:rgba(220,110,35,0.60);--d5:rgba(235,140,45,0.78);--d10:rgba(248,170,55,0.90);
+      --hi:rgba(255,220,80,0.92);--hi-stroke:rgba(255,200,50,0.95);
+      --dim:rgba(80,70,50,0.14);
+    }
+    html,body{width:100%;height:100%;overflow:hidden;background:var(--water);
+      transition:background .3s;touch-action:none;user-select:none;-webkit-user-select:none}
+    canvas{position:absolute;top:0;left:0;cursor:grab}
+    canvas.grabbing{cursor:grabbing}canvas.pointer{cursor:pointer}
+    .title-bar{position:fixed;top:0;left:0;right:0;text-align:center;padding:18px 20px 14px;
+      font-family:Georgia,'Times New Roman',serif;font-size:11px;font-weight:400;
+      letter-spacing:.45em;text-transform:uppercase;color:var(--title-col);
+      pointer-events:none;z-index:10;transition:color .3s}
+    .controls{position:fixed;top:14px;right:16px;display:flex;gap:8px;z-index:20}
+    .ctrl-btn{width:36px;height:36px;border:1px solid var(--panel-border);border-radius:10px;
+      background:var(--btn-bg);color:var(--text);font-size:16px;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;transition:background .2s;
+      -webkit-tap-highlight-color:transparent}
+    .ctrl-btn:hover{background:var(--btn-hover)}
+    .legend{position:fixed;bottom:16px;left:16px;background:var(--panel-bg);
+      border:1px solid var(--panel-border);border-radius:12px;padding:12px 14px;
+      font-family:Georgia,'Times New Roman',serif;font-size:12px;color:var(--text-muted);
+      z-index:15;max-width:260px;line-height:1.45;transition:background .3s,color .3s}
+    .legend b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;
+      margin-bottom:8px;color:var(--text)}
+    .lr{display:flex;align-items:center;gap:8px;margin-top:5px}
+    .ls{width:16px;height:16px;border-radius:4px;flex-shrink:0}
+    .panel{position:fixed;top:0;right:0;width:min(400px,92vw);height:100%;
+      background:var(--panel-bg);border-left:1px solid var(--panel-border);z-index:30;
+      overflow-y:auto;padding:24px 20px 40px;transform:translateX(100%);
+      transition:transform .32s cubic-bezier(.4,0,.2,1),background .3s;
+      font-family:Georgia,'Times New Roman',serif;color:var(--text)}
+    .panel.open{transform:translateX(0)}
+    .panel-close{position:absolute;top:14px;right:14px;width:32px;height:32px;border:none;
+      background:none;font-size:20px;color:var(--text-muted);cursor:pointer;border-radius:8px}
+    .panel-close:hover{background:var(--btn-bg)}
+    .panel h2{font-size:1.25rem;margin:0 0 4px;line-height:1.3}
+    .panel .meta{font-size:.82rem;color:var(--text-muted);margin-bottom:14px;line-height:1.4}
+    .tag{display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:999px;
+      background:rgba(124,47,26,.08);border:1px solid rgba(124,47,26,.16);margin-left:6px}
+    .story-list{display:flex;flex-direction:column;gap:8px}
+    .sc{display:block;padding:12px 14px;border-radius:12px;border:1px solid var(--panel-border);
+      background:rgba(255,249,241,.55);text-decoration:none;color:var(--text);
+      cursor:pointer;transition:background .15s,border-color .15s}
+    body.dark .sc{background:rgba(40,50,44,.35)}
+    .sc:hover{background:rgba(255,244,228,.9);border-color:rgba(124,47,26,.3)}
+    body.dark .sc:hover{background:rgba(60,70,60,.6)}
+    .sc.active{border-color:rgba(200,140,20,.7);background:rgba(255,240,200,.4)}
+    body.dark .sc.active{border-color:rgba(255,200,50,.6);background:rgba(80,60,20,.4)}
+    .sc .st{font-size:.92rem;font-weight:600;color:var(--link);margin-bottom:3px}
+    .sc .sn{font-size:.76rem;color:var(--text-muted)}
+    .sc .sd{font-size:.8rem;color:var(--text-muted);margin-top:4px;line-height:1.35}
+    .sc .sl{display:inline-block;margin-top:6px;font-size:.78rem;color:var(--link);
+      text-decoration:underline}
+    .hint{position:fixed;bottom:16px;right:16px;font-family:Georgia,serif;font-size:11px;
+      color:var(--text-muted);z-index:15;opacity:.5}
+    .ctrl-btn.active-btn{background:var(--btn-hover);border-color:var(--link)}
+    .vol-heading{font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+      color:var(--text-muted);margin:18px 0 8px;padding-bottom:6px;
+      border-bottom:1px solid var(--panel-border)}
+    .vol-heading:first-child{margin-top:0}
+    .idx-count{font-size:.78rem;color:var(--text-muted);margin-bottom:14px}
+    .filter-panel{position:fixed;top:56px;right:16px;background:var(--panel-bg);
+      border:1px solid var(--panel-border);border-radius:12px;padding:14px 16px;
+      z-index:25;min-width:200px;font-family:Georgia,'Times New Roman',serif;
+      color:var(--text);transform:scale(0.95) translateY(-8px);opacity:0;
+      pointer-events:none;transition:transform .18s,opacity .18s;box-shadow:0 4px 24px rgba(0,0,0,.12)}
+    .filter-panel.open{transform:scale(1) translateY(0);opacity:1;pointer-events:auto}
+    .filter-panel h3{font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+      color:var(--text-muted);margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--panel-border)}
+    .filter-row{display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:.82rem;
+      color:var(--text);transition:color .15s}
+    .filter-row:hover{color:var(--link)}
+    .filter-row input{accent-color:var(--link);cursor:pointer;width:15px;height:15px;flex-shrink:0}
+    .filter-actions{display:flex;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid var(--panel-border)}
+    .filter-act{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+      color:var(--link);cursor:pointer;background:none;border:none;padding:2px 0;font-family:inherit}
+    .filter-act:hover{text-decoration:underline}
+    .filter-count{font-size:.72rem;color:var(--text-muted);margin-top:8px}
+    @media(max-width:600px){.legend{display:none}.panel{width:100vw}}
+  </style>
+</head>
+<body>
+<canvas id="C"></canvas>
+<div class="title-bar">Arabian Nights &middot; Story Map</div>
+<div class="controls">
+  <button class="ctrl-btn" id="homeBtn" title="Reset view">&#8962;</button>
+  <button class="ctrl-btn" id="themeBtn" title="Toggle theme">&#9790;</button>
+  <button class="ctrl-btn" id="filterBtn" title="Filter volumes">&#9683;</button>
+  <button class="ctrl-btn" id="indexBtn" title="Story index">&#9776;</button>
+</div>
+<div class="filter-panel" id="filterPanel"></div>
+<div class="legend">
+  <b>Legend</b>
+  <div class="lr"><span class="ls" style="background:rgba(194,116,52,.38)"></span><span>1 tale</span></div>
+  <div class="lr"><span class="ls" style="background:rgba(174,66,24,.66)"></span><span>3 tales</span></div>
+  <div class="lr"><span class="ls" style="background:rgba(134,28,8,.90)"></span><span>10+ tales</span></div>
+  <div class="lr"><span class="ls" style="background:rgba(255,196,60,.88)"></span><span>Highlighted route</span></div>
+  <div style="margin-top:10px;font-size:11px;line-height:1.35">
+    Scroll to zoom. Drag to pan. Click a filled hex to explore stories.<br>
+    60 km hex cells &middot; Burton 1885, Vols.&nbsp;I&ndash;X.
+  </div>
+</div>
+<div class="panel" id="panel">
+  <button class="panel-close" id="panelClose">&times;</button>
+  <div id="PC"></div>
+</div>
+<div class="panel" id="indexPanel">
+  <button class="panel-close" id="indexPanelClose">&times;</button>
+  <div id="IPC"></div>
+</div>
+<div class="hint" id="hint">Scroll to zoom &middot; Drag to pan</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ═══════════════════════ CONFIG ═══════════════════════ */
+const R_KM=15, S3=Math.sqrt(3), COL_KM=R_KM*1.5, ROW_KM=R_KM*S3;
+const LAT0=30, LON0=46;
+const KPL=111.32*Math.cos(LAT0*Math.PI/180), KPA=110.574;
+const B='https://www.burtoniana.org/books/1885-Arabian%20Nights/HTML/';
+
+/* ═══════════════════════ STORIES ═══════════════════════
+   Each story has waypoints [{lat,lon,r}].
+   Routes: interpolate hexes between consecutive waypoints.
+   Blobs: single waypoint with large r.
+   r = spread radius in hex steps from the path center-line. */
+
+const STORIES=[
+// ═══════════════════ VOLUME 1 (Nights 1–200) ═══════════════════
+
+// ── Frame ────────────────────────────────────────────────
+{id:'s01',t:'Story of King Shahryar and His Brother',
+ u:'part1.html#section1',n:'Frame',
+ d:'Two royal brothers discover betrayal. Shah Zaman rides from Samarkand to Shahryar\'s realm in the east.',
+ w:[{lat:39.65,lon:66.96,r:3},{lat:36.8,lon:66.9,r:1},{lat:34.5,lon:69.2,r:1},{lat:34,lon:71.5,r:1},{lat:31.55,lon:74.35,r:1},{lat:28.6,lon:77,r:3}]},
+{id:'s02',t:'Tale of the Bull and the Ass',
+ u:'part1.html#section2',n:'Night 1',
+ d:'A merchant who understands animal speech overhears his bull and donkey arguing about labour.',
+ w:[{lat:29,lon:75,r:4}]},
+
+// ── Trader and Jinni cycle ───────────────────────────────
+{id:'s03',t:'Tale of the Trader and the Jinni',
+ u:'part1.html#section3',n:'Nights 1–3',
+ d:'A merchant discards date-stones that kill a Jinni\'s son. Three shaykhs bargain for his life.',
+ w:[{lat:32.5,lon:41,r:5},{lat:31,lon:43,r:4}]},
+{id:'s04',t:'The First Shaykh\'s Story',
+ u:'part1.html#section4',n:'Night 1',
+ d:'A shaykh tells how his jealous wife turned his son into a calf and his concubine into a cow.',
+ w:[{lat:33.5,lon:39.5,r:4}]},
+{id:'s05',t:'The Second Shaykh\'s Story',
+ u:'part2.html#section6',n:'Night 2',
+ d:'Two envious brothers are transformed into dogs for their treachery toward the shaykh.',
+ w:[{lat:30.5,lon:42,r:4}]},
+{id:'s06',t:'The Third Shaykh\'s Story',
+ u:'part2.html#section7',n:'Night 3',
+ d:'A wife\'s sorcery and a fishwife\'s counter-spell resolve the shaykh\'s enchantment.',
+ w:[{lat:31.5,lon:40,r:3},{lat:29.5,lon:37,r:3}]},
+
+// ── Fisherman and Jinni cycle ────────────────────────────
+{id:'s07',t:'The Fisherman and the Jinni',
+ u:'part2.html#section9',n:'Nights 3–9',
+ d:'A poor fisherman hauls up a brass jar and releases a Jinni who threatens to kill him.',
+ w:[{lat:33,lon:35,r:3},{lat:32,lon:34.5,r:3}]},
+{id:'s08',t:'Tale of the Wazir and the Sage Duban',
+ u:'part2.html#section11',n:'Night 4',
+ d:'King Yunan\'s wazir plots against the sage who cured the king\'s leprosy.',
+ w:[{lat:33,lon:48,r:4}]},
+{id:'s09',t:'King Sindibad and His Falcon',
+ u:'part2.html#section13',n:'Night 5',
+ d:'A king on a hunt kills his loyal falcon, then discovers it was protecting him from poison.',
+ w:[{lat:34.5,lon:50.5,r:4}]},
+{id:'s10',t:'Tale of the Husband and the Parrot',
+ u:'part2.html#section14',n:'Night 5',
+ d:'A husband\'s clever parrot reports his wife\'s infidelity; she tricks him into killing the bird.',
+ w:[{lat:32.5,lon:53,r:3}]},
+{id:'s11',t:'Tale of the Prince and the Ogress',
+ u:'part2.html#section15',n:'Nights 5–6',
+ d:'A prince flees through the wilderness, pursued by a shape-shifting ogress.',
+ w:[{lat:35.5,lon:55,r:2},{lat:33.5,lon:52,r:1},{lat:31.5,lon:49,r:1}]},
+{id:'s12',t:'Tale of the Ensorcelled Prince',
+ u:'part3.html#section18',n:'Nights 7–9',
+ d:'A prince is turned half to stone by his sorceress-wife; his kingdom becomes a lake of four-coloured fish.',
+ w:[{lat:39,lon:43,r:4},{lat:38,lon:44.5,r:3}]},
+
+// ── Porter and Three Ladies cycle ────────────────────────
+{id:'s13',t:'The Porter and the Three Ladies of Baghdad',
+ u:'part3.html#section21',n:'Nights 9–19',
+ d:'A porter spends a wild night with three mysterious ladies, joined by three one-eyed kalandars and the Caliph in disguise.',
+ w:[{lat:33.3,lon:44.4,r:4}]},
+{id:'s14',t:'The First Kalandar\'s Tale',
+ u:'part4.html#section24',n:'Night 11',
+ d:'A prince loses his eye to enchantment and wanders from an eastern kingdom through sea voyages to Baghdad.',
+ w:[{lat:36,lon:57,r:3},{lat:34,lon:56,r:1},{lat:32.7,lon:51.7,r:1},{lat:34.3,lon:47,r:1},{lat:30.5,lon:47.8,r:1},{lat:29.5,lon:48.5,r:1},{lat:29,lon:48.2,r:1},{lat:30.5,lon:47.8,r:1},{lat:32.5,lon:45.8,r:1},{lat:33.3,lon:44.4,r:2}]},
+{id:'s15',t:'The Second Kalandar\'s Tale',
+ u:'part4.html#section26',n:'Nights 12–14',
+ d:'A prince transformed into an ape proves his humanity by calligraphy; a princess dies battling a jinni to save him.',
+ w:[{lat:37,lon:57,r:3},{lat:35.5,lon:58.5,r:1},{lat:34,lon:56,r:1},{lat:32.7,lon:51.7,r:1},{lat:34.3,lon:47,r:1},{lat:33.3,lon:44.4,r:2}]},
+{id:'s16',t:'Tale of the Envier and the Envied',
+ u:'part5.html#section28',n:'Night 13',
+ d:'Nested inside the Second Kalandar\'s tale: a pious man is persecuted by his envious neighbour.',
+ w:[{lat:36,lon:54,r:3},{lat:34.5,lon:55.5,r:3}]},
+{id:'s17',t:'The Third Kalandar\'s Tale',
+ u:'part5.html#section30',n:'Nights 14–16',
+ d:'A prince sails to the Magnetic Mountain, enters a palace of forty girls, and falls through forbidden doors.',
+ w:[{lat:33.3,lon:44.4,r:2},{lat:32.5,lon:45.8,r:1},{lat:31.5,lon:47,r:1},{lat:30.5,lon:47.8,r:1},{lat:29.5,lon:48.5,r:1},{lat:29,lon:48.2,r:1},{lat:27,lon:50.5,r:1},{lat:26,lon:52,r:1},{lat:24.5,lon:54,r:1},{lat:23.6,lon:58.5,r:2},{lat:22,lon:61,r:1},{lat:18.9,lon:63,r:3}]},
+{id:'s18',t:'The Eldest Lady\'s Tale',
+ u:'part6.html#section34',n:'Nights 17–18',
+ d:'The eldest of the three sisters tells of sea voyages, a hidden city of apes, and the fate of her sisters turned to dogs.',
+ w:[{lat:33.3,lon:44.4,r:2},{lat:32.5,lon:45.8,r:1},{lat:31.5,lon:47,r:1},{lat:30.5,lon:47.8,r:1},{lat:29.5,lon:48.5,r:1},{lat:29,lon:48.2,r:1},{lat:27,lon:50.5,r:1},{lat:25,lon:54,r:3}]},
+{id:'s19',t:'Tale of the Portress',
+ u:'part6.html#section36',n:'Night 18',
+ d:'The portress tells of her marriage in Mosul, the groom\'s mysterious prohibitions, and her eventual rescue by the Caliph.',
+ w:[{lat:33.3,lon:44.4,r:3},{lat:34.2,lon:43.9,r:1},{lat:34.6,lon:43.7,r:1},{lat:35.5,lon:43.4,r:1},{lat:36.3,lon:43.2,r:3}]},
+
+// ── Three Apples / Nur al-Din ────────────────────────────
+{id:'s20',t:'Tale of the Three Apples',
+ u:'part7.html#section38',n:'Nights 19–20',
+ d:'The Caliph finds a chest in the Tigris containing a murdered woman. Ja\'afar must solve the crime.',
+ w:[{lat:33.3,lon:44.4,r:3},{lat:32.5,lon:45.8,r:1},{lat:31.5,lon:47,r:1},{lat:30.5,lon:47.8,r:3}]},
+{id:'s21',t:'Tale of Nur al-Din Ali and His Son Badr al-Din Hasan',
+ u:'part7.html#section40',n:'Nights 20–24',
+ d:'An epic family saga across Basra, Cairo, and Damascus — separated father and son reunite after years of wandering.',
+ w:[{lat:30.5,lon:47.8,r:3},{lat:31.5,lon:47,r:1},{lat:32.5,lon:45.8,r:1},{lat:33.3,lon:44.4,r:1},
+    {lat:33.5,lon:42.5,r:1},{lat:34.3,lon:40.2,r:1},{lat:34.6,lon:38.3,r:1},{lat:33.5,lon:36.3,r:1},
+    {lat:31.8,lon:35.2,r:1},{lat:31.5,lon:34.5,r:1},{lat:30.8,lon:33.8,r:1},{lat:30.04,lon:31.24,r:3},
+    {lat:30.8,lon:33.8,r:1},{lat:31.5,lon:34.5,r:1},{lat:31.8,lon:35.2,r:1},{lat:33.5,lon:36.3,r:3}]},
+
+// ── Hunchback cycle ──────────────────────────────────────
+{id:'s22',t:'The Hunchback\'s Tale',
+ u:'part9.html#section45',n:'Nights 25–34 frame',
+ d:'In a city of China (Kashgar), a hunchback chokes at dinner and four men each confess to having killed him.',
+ w:[{lat:39.5,lon:76,r:4}]},
+{id:'s23',t:'The Nazarene Broker\'s Story',
+ u:'part9.html#section47',n:'Night 25',
+ d:'A broker from Cairo tells of a young man whose hand was cut off for theft — and the deeper story behind it.',
+ w:[{lat:30,lon:31.2,r:3},{lat:30.8,lon:33.8,r:1},{lat:31.5,lon:34.5,r:1},{lat:31.8,lon:35.2,r:1},{lat:33.5,lon:36.3,r:1},
+    {lat:34.6,lon:38.3,r:1},{lat:34.3,lon:40.2,r:1},{lat:33.5,lon:42.5,r:1},{lat:33.3,lon:44.4,r:1},
+    {lat:34.3,lon:47,r:1},{lat:34.8,lon:48.5,r:1},{lat:32.7,lon:51.7,r:1},{lat:31.9,lon:54.4,r:1},
+    {lat:35.5,lon:58.5,r:1},{lat:36.5,lon:59,r:1},{lat:37.6,lon:62.2,r:1},{lat:39.8,lon:64.4,r:1},
+    {lat:39.65,lon:67,r:1},{lat:40,lon:69,r:1},{lat:40,lon:72,r:1},{lat:39.5,lon:76,r:3}]},
+{id:'s24',t:'The Reeve\'s Tale',
+ u:'part10.html#section50',n:'Night 26',
+ d:'A reeve tells a story of a lame young man and a barber\'s meddling in affairs of the heart.',
+ w:[{lat:39.5,lon:76,r:3},{lat:38.5,lon:74,r:3}]},
+{id:'s25',t:'The Jewish Doctor\'s Tale',
+ u:'part10.html#section52',n:'Nights 26–27',
+ d:'A doctor from Mosul tells of events in Damascus, with mentions of Aleppo and Cairo.',
+ w:[{lat:36.3,lon:43.2,r:3},{lat:36.2,lon:40,r:1},{lat:36.2,lon:37.1,r:2},
+    {lat:35,lon:36.5,r:1},{lat:33.5,lon:36.3,r:3}]},
+{id:'s26',t:'The Tailor\'s Tale',
+ u:'part11.html#section54',n:'Night 25–34',
+ d:'A tailor from Kashgar tells of a lame young man\'s misadventure at a Baghdad dinner party.',
+ w:[{lat:39.5,lon:76,r:2},{lat:40,lon:72,r:1},{lat:40,lon:69,r:1},{lat:39.65,lon:67,r:1},
+    {lat:39.8,lon:64.4,r:1},{lat:37.6,lon:62.2,r:1},{lat:36.5,lon:59,r:1},{lat:35.5,lon:58.5,r:1},
+    {lat:31.9,lon:54.4,r:1},{lat:32.7,lon:51.7,r:1},{lat:34.8,lon:48.5,r:1},{lat:34.3,lon:47,r:1},{lat:33.3,lon:44.4,r:3}]},
+{id:'s27',t:'The Barber\'s Tale of Himself',
+ u:'part11.html#section57',n:'Night 30',
+ d:'The garrulous barber of Baghdad tells the Caliph his life story — claiming he is the Silent One.',
+ w:[{lat:33.3,lon:44.4,r:3},{lat:33.8,lon:43.8,r:3}]},
+{id:'s28',t:'The Barber\'s First Brother (al-Bakkuk)',
+ u:'part11.html#section58',n:'Night 30',
+ d:'A lame tailor cheated by a merchant\'s wife in the markets of Baghdad.',
+ w:[{lat:33.8,lon:44.2,r:3}]},
+{id:'s29',t:'The Barber\'s Second Brother (al-Haddar)',
+ u:'part11.html#section59',n:'Night 31',
+ d:'A prattler starves while fantasising about a feast that never comes.',
+ w:[{lat:32.8,lon:45,r:3}]},
+{id:'s30',t:'The Barber\'s Third Brother (Bakbak)',
+ u:'part12.html#section61',n:'Night 31',
+ d:'A blind man is tricked out of his money by clever thieves.',
+ w:[{lat:33.8,lon:45,r:3}]},
+{id:'s31',t:'The Barber\'s Fourth Brother (al-Kuz)',
+ u:'part12.html#section62',n:'Night 32',
+ d:'A butcher loses everything in a scheme involving a one-eyed cobbler.',
+ w:[{lat:32.7,lon:43.8,r:3}]},
+{id:'s32',t:'The Barber\'s Fifth Brother (al-Ashar)',
+ u:'part12.html#section63',n:'Nights 32–33',
+ d:'A greedy brother inherits money, loses it, and is beaten for daydreaming of grandeur.',
+ w:[{lat:34,lon:44.8,r:3}]},
+{id:'s33',t:'The Barber\'s Sixth Brother (Shakashik)',
+ u:'part12.html#section65',n:'Night 33',
+ d:'A Barmecide nobleman serves an invisible feast; the brother plays along until he strikes.',
+ w:[{lat:32.8,lon:44,r:3}]},
+
+// ═══════════════════ VOLUME 2 (Nights 200–400) ═══════════════════
+
+{id:'v2s01',t:'Tale of Ghanim bin Ayyub',
+ u:'part14.html#section73',n:'Nights 34–45',
+ d:'A young merchant of Damascus is drawn into a palace intrigue in Baghdad involving the Caliph\'s favourite.',
+ w:[{lat:33.5,lon:36.3,r:3},{lat:34.6,lon:38.3,r:1},{lat:34.3,lon:40.2,r:1},{lat:33.5,lon:42.5,r:1},{lat:33.3,lon:44.4,r:3}]},
+{id:'v2s02',t:'Tale of King Omar bin al-Nu\'uman (epic)',
+ u:'part15.html#section83',n:'Nights 45–145',
+ d:'A vast epic spanning Baghdad, Constantinople, the Crusader Holy Land, Khorasan, and beyond — the wars and loves of two royal brothers.',
+ w:[{lat:33.3,lon:44.4,r:3},{lat:33.5,lon:42.5,r:1},{lat:34.3,lon:40.2,r:1},{lat:34.6,lon:38.3,r:1},{lat:33.5,lon:36.3,r:2},
+    {lat:31.8,lon:35.2,r:1},{lat:31.5,lon:34.5,r:2},
+    {lat:33.5,lon:36.3,r:2},{lat:34.7,lon:36.7,r:1},{lat:36.2,lon:37.1,r:1},{lat:36.2,lon:36.2,r:1},
+    {lat:37,lon:35,r:1},{lat:38.5,lon:34,r:1},{lat:39.9,lon:32.9,r:1},{lat:40.5,lon:30,r:1},{lat:41,lon:29,r:3}]},
+{id:'v2s03',t:'King Omar — Khorasan & Yemen branches',
+ u:'part15.html#section83',n:'Nights 45–145',
+ d:'The Omar epic extends eastward through Khorasan and south to Yemen and the Hijaz.',
+ w:[{lat:33.3,lon:44.4,r:2},{lat:34.3,lon:47,r:1},{lat:34.8,lon:48.5,r:1},{lat:32.7,lon:51.7,r:1},{lat:31.9,lon:54.4,r:1},{lat:34,lon:56,r:1},{lat:35.5,lon:58.5,r:1},{lat:36.5,lon:59,r:3},
+    {lat:33.3,lon:44.4,r:2},{lat:32.5,lon:45.8,r:1},{lat:31.5,lon:47,r:1},{lat:30.5,lon:47.8,r:1},{lat:28,lon:42,r:1},{lat:24.5,lon:39.6,r:1},{lat:21.4,lon:39.8,r:2},
+    {lat:19.5,lon:41,r:1},{lat:18,lon:42.5,r:1},{lat:15.5,lon:43,r:1},{lat:15,lon:44,r:3}]},
+{id:'v2s04',t:'Tale of Taj al-Muluk and the Princess Dunya',
+ u:'part22.html#section146',n:'Nights 107–136',
+ d:'A prince journeys from the Green City through the mountains of Isfahan to win Princess Dunya in the White Land.',
+ w:[{lat:33,lon:50,r:3},{lat:32.7,lon:51.7,r:2},{lat:33,lon:53,r:1},{lat:34,lon:55,r:3}]},
+{id:'v2s05',t:'Tale of Aziz and Azizah',
+ u:'part22.html#section152',n:'Nights 111–128',
+ d:'A young man destroys himself and two women through carelessness in love — nested inside the Taj al-Muluk tale.',
+ w:[{lat:33.5,lon:45,r:4}]},
+
+// ═══════════════════ VOLUME 3 (Nights 400–600) ═══════════════════
+
+{id:'v3s01',t:'Tale of Hammad the Badawi',
+ u:'part27.html#section186',n:'Night ~150',
+ d:'A Bedouin of the Arabian desert makes a pilgrimage to Jerusalem.',
+ w:[{lat:28,lon:42,r:3},{lat:29,lon:39,r:1},{lat:30,lon:37,r:1},{lat:31.8,lon:35.2,r:3}]},
+{id:'v3s02',t:'The Birds and Beasts and the Carpenter',
+ u:'part27.html#section189',n:'Night ~150',
+ d:'A cycle of tales begins with the birds, beasts, and a carpenter who each tell their stories within the Omar epic.',
+ w:[{lat:30,lon:40,r:5}]},
+{id:'v3s03',t:'The Merchant and the Two Sharpers',
+ u:'part28.html#section207',n:'Night ~170',
+ d:'A merchant travelling through Sindh is swindled by two clever thieves.',
+ w:[{lat:26,lon:68,r:3}]},
+{id:'v3s04',t:'Tale of Ali bin Bakkar and Shams al-Nahar',
+ u:'part29.html#section212',n:'Nights 170–190',
+ d:'A tragic love story between a Persian prince and the Caliph\'s favourite, set along the Tigris in Baghdad.',
+ w:[{lat:33.3,lon:44.4,r:4},{lat:33.5,lon:44,r:3}]},
+{id:'v3s05',t:'Tale of Kamar al-Zaman',
+ u:'part30.html#section230',n:'Nights 190–250',
+ d:'A prince of the Khalidan Islands is carried by jinn to a Chinese princess; their fates intertwine across seas, the Ebony Islands, and the lands of the Magians.',
+ w:[{lat:27,lon:52,r:3},{lat:25.5,lon:53,r:1},{lat:24.5,lon:54,r:1},{lat:23.6,lon:56,r:1},{lat:23.6,lon:58.5,r:1},{lat:23,lon:59.8,r:1},{lat:22,lon:61,r:1},
+    {lat:21,lon:63,r:1},{lat:20,lon:65,r:1},{lat:19.5,lon:67,r:1},{lat:19,lon:69.5,r:1},{lat:19,lon:72.9,r:1},{lat:17,lon:73.4,r:1},{lat:15.5,lon:73.8,r:1},{lat:13.5,lon:74.8,r:1},{lat:11.3,lon:75.8,r:1},
+    {lat:9,lon:77.5,r:1},{lat:7,lon:79.9,r:1},{lat:6,lon:82,r:1},{lat:5,lon:87,r:1},{lat:4.5,lon:90,r:1},{lat:4,lon:94,r:3}]},
+{id:'v3s06',t:'Kamar al-Zaman — Persian & Ebony Island arc',
+ u:'part30.html#section230',n:'Nights 190–250',
+ d:'The Kamar al-Zaman epic loops through Isfahan, the Ebony Islands, and back through the Persian Gulf.',
+ w:[{lat:32.7,lon:51.7,r:3},{lat:30.5,lon:47.8,r:1},{lat:29.5,lon:48.5,r:1},{lat:28,lon:49.5,r:1},{lat:27,lon:50.5,r:1},
+    {lat:25.5,lon:53,r:1},{lat:24.5,lon:54,r:1},{lat:23.6,lon:56,r:1},{lat:23.6,lon:58.5,r:1},{lat:22.5,lon:59.5,r:1},{lat:22,lon:61,r:1},{lat:20.5,lon:60.5,r:1},{lat:20,lon:60,r:3}]},
+{id:'v3s07',t:'Tale of Amjad and As\'ad',
+ u:'part30.html#section230',n:'Nights 217–248',
+ d:'The two sons of Kamar al-Zaman are cast out by jealous stepmothers and wander through the lands of the Magians and the fire-worshippers.',
+ w:[{lat:26,lon:54,r:2},{lat:27,lon:50.5,r:1},{lat:29,lon:48.2,r:1},{lat:29.5,lon:48.5,r:1},{lat:30.5,lon:47.8,r:1},{lat:31.5,lon:47,r:1},{lat:32.5,lon:45.8,r:1},{lat:33.3,lon:44.4,r:2}]},
+
+// ── Remaining Volume 3 tales ──────────────────────────────
+{id:'v3s08',t:'The Tale of the Hashish Eater',
+ u:'part26.html#section183',n:'Night ~142',
+ d:'A naked pauper, fuddled by hashish in a Cairo bath-house, fantasises himself into a grand wedding — until the Wali douses him with cold water.',
+ w:[{lat:30,lon:31.2,r:4}]},
+{id:'v3s09',t:'Nur Al-Din Ali and the Damsel Anis Al-Jalis',
+ u:'part12.html#section68',n:'Nights 34–38',
+ d:'The son of a Basra wazir inherits a peerless slave-girl, squanders his fortune in love, and flees north to Baghdad where a chance encounter with the Caliph saves them both.',
+ w:[{lat:30.5,lon:47.8,r:3},{lat:32,lon:46,r:1},{lat:33.3,lon:44.4,r:3}]},
+{id:'v3s10',t:'Ni\'amah bin al-Rabi\'a and Naomi his Slave-girl',
+ u:'part35.html#section298',n:'Nights 237–246',
+ d:'A young man of Kufa and his beloved slave-girl are separated when she is stolen and sent to Damascus; he follows across the desert to reclaim her.',
+ w:[{lat:32,lon:44.4,r:3},{lat:33.3,lon:44.4,r:1},{lat:33.5,lon:42.5,r:1},{lat:34.3,lon:40.2,r:1},{lat:34.6,lon:38.3,r:1},{lat:33.5,lon:36.3,r:3}]},
+{id:'v3s11',t:'Ala Al-Din Abu Al-Shamat',
+ u:'part36.html#section311',n:'Nights 249–270',
+ d:'A merchant\'s son journeys from Cairo to Baghdad, is framed for theft by a trusted courtier, and endures years of exile before the Caliph restores his honour.',
+ w:[{lat:30,lon:31.2,r:3},{lat:30.8,lon:33.8,r:1},{lat:31.5,lon:34.5,r:1},{lat:31.8,lon:35.2,r:1},{lat:33.5,lon:36.3,r:1},{lat:34.6,lon:38.3,r:1},{lat:34.3,lon:40.2,r:1},{lat:33.5,lon:42.5,r:1},{lat:33.3,lon:44.4,r:3}]},
+{id:'v3s12',t:'The Hermits',
+ u:'part27.html#section191',n:'Night ~152',
+ d:'Two hermits debate the merits of solitude and society in the wilderness.',
+ w:[{lat:30,lon:40,r:3}]},
+{id:'v3s13',t:'Tale of the Water Fowl and the Tortoise',
+ u:'part27.html#section193',n:'Night ~153',
+ d:'A water bird and a tortoise exchange wisdom by a desert pool.',
+ w:[{lat:29,lon:41,r:3}]},
+{id:'v3s14',t:'Tale of the Wolf and the Fox',
+ u:'part28.html#section194',n:'Night ~154',
+ d:'A fox outwits a tyrannical wolf through guile and patience.',
+ w:[{lat:31,lon:39,r:3}]},
+{id:'v3s15',t:'Tale of the Mouse and the Ichneumon',
+ u:'part28.html#section198',n:'Night ~156',
+ d:'A mouse and a mongoose dispute over a shared dwelling.',
+ w:[{lat:30,lon:40,r:3}]},
+{id:'v3s16',t:'The Cat and the Crow',
+ u:'part28.html#section199',n:'Night ~157',
+ d:'A crow befriends a cat, and their alliance is tested by a hunter.',
+ w:[{lat:29,lon:42,r:3}]},
+{id:'v3s17',t:'The Fox and the Crow',
+ u:'part28.html#section200',n:'Night ~158',
+ d:'A cunning fox flatters a crow into dropping her cheese.',
+ w:[{lat:30,lon:41,r:3}]},
+{id:'v3s18',t:'The Hedgehog and the Wood-Pigeons',
+ u:'part28.html#section206',n:'Night ~162',
+ d:'A hedgehog takes refuge with wood-pigeons and repays their hospitality.',
+ w:[{lat:31,lon:40,r:3}]},
+{id:'v3s19',t:'The Thief and his Monkey',
+ u:'part28.html#section208',n:'Night ~163',
+ d:'A thief trains a monkey to steal, but the monkey turns the tables.',
+ w:[{lat:30,lon:41,r:3}]},
+{id:'v3s20',t:'The Sparrow and the Peacock',
+ u:'part28.html#section210',n:'Night ~165',
+ d:'A humble sparrow and a vain peacock debate beauty versus virtue.',
+ w:[{lat:29,lon:40,r:3}]},
+
+// ═══════════════════ VOLUME 4 (Nights ~270–371) ═══════════════════
+
+{id:'v4s01',t:'Hatim of the Tribe of Tayy',
+ u:'part38.html#section332',n:'Night ~270',
+ d:'The proverbial generosity of Hatim al-Tai, chief of the Tayy in the Arabian highlands, tested by successive guests who demand ever-greater gifts.',
+ w:[{lat:27.5,lon:41,r:4}]},
+{id:'v4s02',t:'The City of Labtayt',
+ u:'part38.html#section337',n:'Night ~272',
+ d:'A traveller reaches a mysterious walled city at the western rim of the known world, its people turned to stone — a warning against impiety.',
+ w:[{lat:33,lon:20,r:4}]},
+{id:'v4s03',t:'The Caliph Hisham and the Arab Youth',
+ u:'part38.html#section339',n:'Night ~273',
+ d:'The Umayyad Caliph Hisham encounters a Bedouin youth at the Damascus court who outshines every courtier in eloquence and bearing.',
+ w:[{lat:33.5,lon:36.3,r:3}]},
+{id:'v4s04',t:'Ibrahim bin al-Mahdi and the Barber-Surgeon',
+ u:'part38.html#section340',n:'Night ~273',
+ d:'Prince Ibrahim, uncle of the Caliph, goes into hiding in Baghdad and finds unlikely refuge with a humble barber-surgeon.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v4s05',t:'The City of Many-Columned Iram and Abdullah Son of Abi Kilabah',
+ u:'part39.html#section344',n:'Nights ~274–276',
+ d:'A Bedouin searching for a lost camel stumbles upon Iram of the Pillars, the lost city built by King Shaddad in the Empty Quarter — a paradise of jewelled columns swallowed by the sands.',
+ w:[{lat:22,lon:46,r:2},{lat:21,lon:48,r:1},{lat:20,lon:50,r:2},{lat:19,lon:52,r:2},{lat:18,lon:54,r:3}]},
+{id:'v4s06',t:'Isaac of Mosul',
+ u:'part39.html#section349',n:'Night ~277',
+ d:'The great musician Isaac al-Mawsili, hearing a slave-girl sing his own compositions more beautifully than he can, travels from Baghdad to Mosul in disguise to find her.',
+ w:[{lat:33.3,lon:44.4,r:3},{lat:34.2,lon:43.9,r:1},{lat:34.6,lon:43.7,r:1},{lat:35.5,lon:43.4,r:1},{lat:36.3,lon:43.2,r:3}]},
+{id:'v4s07',t:'The Sweep and the Noble Lady',
+ u:'part39.html#section353',n:'Night ~278',
+ d:'A humble street-sweeper in Baghdad rescues a noble lady from disgrace and is rewarded beyond all expectation by the Caliph.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v4s08',t:'The Mock Caliph',
+ u:'part39.html#section357',n:'Nights ~279–282',
+ d:'Harun al-Rashid, prowling Baghdad by night, discovers a young merchant who has built his own mock court — with boon-companions, a Tigris-side palace, and every trapping of the Caliphate.',
+ w:[{lat:33.3,lon:44.4,r:4}]},
+{id:'v4s09',t:'Ali the Persian',
+ u:'part40.html#section367',n:'Night ~283',
+ d:'A Persian merchant hosts a dinner party in Baghdad that descends from theology to ribaldry — to the delight of the Caliph listening in disguise.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v4s10',t:'Abu Mohammed Hight Lazybones',
+ u:'part40.html#section376',n:'Nights ~285–294',
+ d:'A Baghdad idler inherits a fortune, loses everything through excess, then sails the Persian Gulf to the coasts of China and wins wealth again through cunning.',
+ w:[{lat:33.3,lon:44.4,r:3},{lat:32.5,lon:45.8,r:1},{lat:31.5,lon:47,r:1},{lat:30.5,lon:47.8,r:1},{lat:29.5,lon:48.5,r:1},{lat:29,lon:48.2,r:1},{lat:28,lon:49.5,r:1},{lat:27,lon:50.5,r:1},{lat:25.5,lon:53,r:1},{lat:24.5,lon:54,r:1},{lat:23.6,lon:56,r:1},{lat:23.6,lon:58.5,r:1},{lat:23,lon:59.8,r:1},{lat:22,lon:61,r:1},{lat:21,lon:63,r:1},{lat:20,lon:65,r:1},{lat:19.5,lon:67,r:1},{lat:19,lon:69.5,r:1},{lat:19,lon:72.9,r:1},{lat:17,lon:73.4,r:1},{lat:15.5,lon:73.8,r:1},{lat:13.5,lon:74.8,r:1},{lat:11.3,lon:75.8,r:1},{lat:9,lon:77.5,r:1},{lat:7,lon:79.9,r:1},{lat:6,lon:82,r:1},{lat:5,lon:87,r:1},{lat:4.5,lon:90,r:1},{lat:4,lon:92,r:3}]},
+{id:'v4s11',t:'Ali Shar and Zumurrud',
+ u:'part41.html#section389',n:'Nights ~306–327',
+ d:'A Khorasani youth and his clever slave-girl Zumurrud are separated by Christian thieves; she disguises herself as a king and rules a city until they are reunited.',
+ w:[{lat:36,lon:59,r:3},{lat:35.5,lon:58.5,r:1},{lat:34,lon:56,r:1},{lat:31.9,lon:54.4,r:1},{lat:32.7,lon:51.7,r:1},{lat:34.8,lon:48.5,r:1},{lat:34.3,lon:47,r:1},{lat:33.3,lon:44.4,r:3}]},
+{id:'v4s12',t:'The Loves of Jubayr bin Umayr and the Lady Budur',
+ u:'part42.html#section409',n:'Nights ~327–334',
+ d:'A man of the Banu Udhrah — the tribe famed for dying of love — journeys from Damascus to Baghdad seeking his beloved Lady Budur.',
+ w:[{lat:33.5,lon:36.3,r:3},{lat:34.6,lon:38.3,r:1},{lat:34.3,lon:40.2,r:1},{lat:33.5,lon:42.5,r:1},{lat:33.3,lon:44.4,r:3}]},
+{id:'v4s13',t:'Ma\'an the Son of Zaidah',
+ u:'part38.html#section334',n:'Night ~271',
+ d:'The Caliph tests the generosity of Ma\'an, governor of the Yaman, and finds it surpasses even royal munificence.',
+ w:[{lat:15,lon:44,r:3},{lat:15.5,lon:43,r:1},{lat:18,lon:42.5,r:1},{lat:19.5,lon:41,r:1},{lat:21.5,lon:39.2,r:1},{lat:21.4,lon:39.8,r:3}]},
+{id:'v4s14',t:'Ma\'an Son of Zaidah and the Badawi',
+ u:'part38.html#section336',n:'Night ~271',
+ d:'Ma\'an encounters a Bedouin in the Arabian desert who does not know him, and tests his own reputation for generosity through disguise.',
+ w:[{lat:25,lon:42,r:4},{lat:27,lon:44,r:3}]},
+{id:'v4s15',t:'Harun Al-Rashid and the Slave-Girl and the Imam Abu Yusuf',
+ u:'part40.html#section370',n:'Night ~284',
+ d:'The Caliph, troubled by a legal question about a slave-girl, summons the great jurist Abu Yusuf for a ruling.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v4s16',t:'The Lover Who Feigned Himself a Thief',
+ u:'part40.html#section372',n:'Night ~284',
+ d:'A lover arrested at his beloved\'s window claims to be a thief rather than expose her honour.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v4s17',t:'Ja\'afar the Barmecide and the Bean Seller',
+ u:'part40.html#section375',n:'Night ~285',
+ d:'The great wazir Ja\'afar buys beans from a street vendor and rewards him beyond measure.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v4s18',t:'Generous Dealing of Yahya bin Khalid with Mansur',
+ u:'part41.html#section383',n:'Night ~300',
+ d:'Yahya the Barmecide helps a man named Mansur who has fallen on hard times.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v4s19',t:'Generous Dealing of Yahya with a Man Who Forged a Letter',
+ u:'part41.html#section385',n:'Night ~302',
+ d:'A desperate man forges a letter of introduction to Yahya, who honours it anyway out of generosity.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v4s20',t:'Caliph Al-Maamun and the Strange Scholar',
+ u:'part41.html#section387',n:'Night ~305',
+ d:'The learned Caliph al-Maamun encounters a scholar whose knowledge surpasses the court\'s wisest men.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+
+// ═══════════════════ VOLUME 5 (Nights ~371–453) ═══════════════════
+
+{id:'v5s01',t:'The Man of Al-Yaman and his Six Slave-Girls',
+ u:'part43.html#section417',n:'Nights ~371–375',
+ d:'A wealthy man of Yemen brings six slave-girls to Baghdad, each excelling in a different art — they debate before the Caliph who is finest.',
+ w:[{lat:15,lon:44,r:3},{lat:15.5,lon:43,r:1},{lat:18,lon:42.5,r:1},{lat:19.5,lon:41,r:1},{lat:21.5,lon:39.2,r:1},{lat:21.4,lon:39.8,r:1},{lat:23,lon:39.7,r:1},{lat:24.5,lon:39.6,r:1},{lat:26,lon:38.5,r:1},{lat:27.5,lon:37.5,r:1},{lat:28.4,lon:36.6,r:1},{lat:29.5,lon:36,r:1},{lat:30,lon:35.3,r:1},{lat:31.5,lon:35.5,r:1},{lat:33.5,lon:36.3,r:1},{lat:34.6,lon:38.3,r:1},{lat:34.3,lon:40.2,r:1},{lat:33.5,lon:42.5,r:1},{lat:33.3,lon:44.4,r:3}]},
+{id:'v5s02',t:'The Sharper of Alexandria and the Chief of Police',
+ u:'part44.html#section427',n:'Night ~380',
+ d:'A cunning thief in Alexandria outwits the chief of police through a series of audacious stratagems.',
+ w:[{lat:31.2,lon:29.9,r:3}]},
+{id:'v5s03',t:'Al-Malik Al-Nasir and the Three Chiefs of Police',
+ u:'part44.html#section429',n:'Nights ~381–385',
+ d:'The Sultan of Egypt commands the police chiefs of Cairo, Bulak, and Old Cairo each to tell their most remarkable case.',
+ w:[{lat:30,lon:31.2,r:4}]},
+{id:'v5s04',t:'The Ruined Man Who Became Rich Again Through a Dream',
+ u:'part44.html#section449',n:'Night ~390',
+ d:'A man of Baghdad, ruined by extravagance, dreams he must travel to Cairo to find treasure — but the treasure proves to be back in Baghdad.',
+ w:[{lat:33.3,lon:44.4,r:3},{lat:33.5,lon:42.5,r:1},{lat:34.3,lon:40.2,r:1},{lat:34.6,lon:38.3,r:1},{lat:33.5,lon:36.3,r:1},{lat:31.8,lon:35.2,r:1},{lat:31.5,lon:34.5,r:1},{lat:30.8,lon:33.8,r:1},{lat:30,lon:31.2,r:3}]},
+{id:'v5s05',t:'The Ebony Horse',
+ u:'part45.html#section459',n:'Nights ~397–413',
+ d:'A Persian sage presents the King of Sanaa with a mechanical flying horse of ebony; the prince rides it to Constantinople, then to India and back.',
+ w:[{lat:15.4,lon:44.2,r:3},{lat:18,lon:42.5,r:1},{lat:19.5,lon:41,r:1},{lat:21.5,lon:39.2,r:1},{lat:24.5,lon:39.6,r:1},{lat:26,lon:38.5,r:1},{lat:28.4,lon:36.6,r:1},{lat:30,lon:35.3,r:1},{lat:33.5,lon:36.3,r:1},
+    {lat:34.6,lon:38.3,r:1},{lat:34.3,lon:40.2,r:1},{lat:33.5,lon:42.5,r:1},{lat:33.3,lon:44.4,r:1},{lat:34.3,lon:47,r:1},{lat:34.8,lon:48.5,r:1},{lat:32.7,lon:51.7,r:3},
+    {lat:34.8,lon:48.5,r:1},{lat:34.3,lon:47,r:1},{lat:33.3,lon:44.4,r:1},{lat:33.5,lon:42.5,r:1},{lat:34.3,lon:40.2,r:1},{lat:34.6,lon:38.3,r:1},{lat:33.5,lon:36.3,r:1},
+    {lat:34.7,lon:36.7,r:1},{lat:36.2,lon:37.1,r:1},{lat:37,lon:35,r:1},{lat:38.5,lon:34,r:1},{lat:39.9,lon:32.9,r:1},{lat:40.5,lon:30,r:1},{lat:41,lon:29,r:3},
+    {lat:40.5,lon:30,r:1},{lat:39.9,lon:32.9,r:1},{lat:38.5,lon:34,r:1},{lat:37,lon:35,r:1},{lat:36.2,lon:37.1,r:1},{lat:34.7,lon:36.7,r:1},{lat:33.5,lon:36.3,r:1},{lat:34.6,lon:38.3,r:1},{lat:34.3,lon:40.2,r:1},{lat:33.5,lon:42.5,r:1},{lat:33.3,lon:44.4,r:1},{lat:34.3,lon:47,r:1},{lat:34.8,lon:48.5,r:1},{lat:32.7,lon:51.7,r:1},{lat:31.9,lon:54.4,r:1},{lat:30,lon:60,r:1},{lat:28.6,lon:66,r:1},{lat:27,lon:70,r:1},{lat:28.6,lon:77,r:3}]},
+{id:'v5s06',t:'Uns Al-Wujud and Al-Ward fi\'l-Akmam (Rose-in-Hood)',
+ u:'part46.html#section474',n:'Nights ~413–427',
+ d:'A young man and the wazir\'s daughter fall in love through verses; separated by the king, they wander seas and islands before reuniting.',
+ w:[{lat:33.3,lon:44.4,r:3},{lat:32.5,lon:45.8,r:1},{lat:31.5,lon:47,r:1},{lat:30.5,lon:47.8,r:1},{lat:29.5,lon:48.5,r:1},{lat:29,lon:48.2,r:1},{lat:28,lon:49.5,r:1},{lat:27,lon:50.5,r:1},{lat:25.5,lon:53,r:1},{lat:24.5,lon:54,r:1},{lat:23.6,lon:56,r:1},{lat:23.6,lon:58.5,r:2},{lat:22,lon:59.5,r:1},{lat:21,lon:60,r:1},{lat:20,lon:60,r:3}]},
+{id:'v5s07',t:'Harun Al-Rashid and the Damsel and Abu Nowas',
+ u:'part43.html#section422',n:'Night ~376',
+ d:'The poet Abu Nowas entertains the Caliph with a witty tale about a beautiful damsel.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v5s08',t:'The Man Who Stole the Dish of Gold Wherein the Dog Ate',
+ u:'part44.html#section425',n:'Night ~379',
+ d:'A thief steals a golden dish used to feed a rich man\'s dog, and the consequences that follow.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v5s09',t:'The Thief and the Shroff',
+ u:'part44.html#section435',n:'Night ~386',
+ d:'A cunning thief outwits a money-changer in the bazaar.',
+ w:[{lat:30,lon:31.2,r:3}]},
+{id:'v5s10',t:'The Chief of the Kus Police and the Sharper',
+ u:'part44.html#section437',n:'Night ~387',
+ d:'The police chief of Kus in Upper Egypt matches wits with a clever sharper.',
+ w:[{lat:26,lon:32.5,r:3}]},
+{id:'v5s11',t:'Ibrahim bin al-Mahdi and the Merchant\'s Sister',
+ u:'part44.html#section439',n:'Night ~388',
+ d:'Prince Ibrahim falls in love with a merchant\'s sister and endures hardship before winning her.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v5s12',t:'The Woman Whose Hands Were Cut Off for Giving Alms',
+ u:'part44.html#section441',n:'Night ~389',
+ d:'A pious woman\'s charity is punished by her husband, but divine justice vindicates her.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v5s13',t:'The Devout Israelite',
+ u:'part44.html#section443',n:'Night ~389',
+ d:'An Israelite\'s unwavering devotion is tested and rewarded by Providence.',
+ w:[{lat:31.8,lon:35.2,r:3}]},
+{id:'v5s14',t:'Abu Hassan Al-Ziyadi and the Khorasani',
+ u:'part44.html#section445',n:'Night ~390',
+ d:'The judge Abu Hassan al-Ziyadi encounters a man from Khorasan with an extraordinary legal case.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v5s15',t:'The Poor Man and his Friend in Need',
+ u:'part44.html#section448',n:'Night ~390',
+ d:'A destitute man tests his friends and finds only one who is true.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v5s16',t:'Caliph Al-Mutawakkil and his Concubine Mahbubah',
+ u:'part44.html#section451',n:'Night ~391',
+ d:'The Caliph al-Mutawakkil is moved to tears by a song from his beloved concubine Mahbubah in Samarra.',
+ w:[{lat:34.2,lon:43.9,r:3}]},
+{id:'v5s17',t:'Wardan the Butcher, his Adventure with the Lady and the Bear',
+ u:'part45.html#section453',n:'Night ~393',
+ d:'A Baghdad butcher named Wardan has a terrifying encounter involving a noble lady and a dancing bear.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v5s18',t:'The King\'s Daughter and the Ape',
+ u:'part45.html#section456',n:'Night ~395',
+ d:'A princess is courted by a shape-shifting jinni in the form of an ape.',
+ w:[{lat:30,lon:31.2,r:3}]},
+
+// ═══════════════════ VOLUME 6 (Nights ~453–567) ═══════════════════
+
+{id:'v6s01',t:'Abdallah bin Ma\'amar with the Man of Bassorah',
+ u:'part47.html#section488',n:'Night ~460',
+ d:'A man of Basra tells Abdallah of his consuming love for a slave-girl, and the lengths to which he went to buy her.',
+ w:[{lat:30.5,lon:47.8,r:3}]},
+{id:'v6s02',t:'The Lovers of the Banu Ozrah',
+ u:'part47.html#section489',n:'Night ~461',
+ d:'An Udhri lover wastes away for a woman he cannot have — exemplifying the Banu Udhrah, the tribe that dies of love.',
+ w:[{lat:26,lon:37,r:4}]},
+{id:'v6s03',t:'Khusrau and Shirin and the Fisherman',
+ u:'part48.html#section513',n:'Night ~490',
+ d:'The Sasanian king Khusrau Parviz and his beloved Shirin encounter a fisherman whose luck mirrors the justice of Persian kingship.',
+ w:[{lat:34,lon:46,r:3},{lat:33,lon:48,r:3}]},
+{id:'v6s04',t:'Caliph Al-Maamun and the Pyramids of Egypt',
+ u:'part48.html#section527',n:'Night ~500',
+ d:'The Caliph Al-Maamun orders the Great Pyramid breached to discover its secrets — and finds ancient treasure within.',
+ w:[{lat:30,lon:31.2,r:3}]},
+{id:'v6s05',t:'Abd Al-Rahman the Maghribi\'s Story of the Rukh',
+ u:'part49.html#section542',n:'Night ~510',
+ d:'A Maghribi traveller describes his encounter with the monstrous Rukh bird on a distant island in the Sea of China.',
+ w:[{lat:35,lon:2,r:3},{lat:35,lon:5,r:1},{lat:34.5,lon:7.5,r:1},{lat:34,lon:10,r:1},{lat:32.9,lon:13.2,r:1},{lat:32.8,lon:16,r:1},{lat:32.5,lon:20,r:1},{lat:32.3,lon:23,r:1},{lat:32,lon:25,r:1},{lat:31.2,lon:29.9,r:1},{lat:30,lon:31.2,r:1},{lat:30,lon:32.5,r:1},{lat:28,lon:34,r:1},{lat:25,lon:36,r:1},{lat:23,lon:38,r:1},{lat:21.5,lon:39.2,r:1},
+    {lat:19,lon:40.5,r:1},{lat:17,lon:41.5,r:1},{lat:15,lon:42.5,r:1},{lat:13.5,lon:43,r:1},{lat:12.5,lon:43.5,r:1},{lat:12.8,lon:45,r:1},
+    {lat:14,lon:48,r:1},{lat:16,lon:52,r:1},{lat:18,lon:55,r:1},{lat:20,lon:57,r:1},{lat:22,lon:59,r:1},{lat:23.6,lon:58.5,r:1},{lat:23,lon:59.8,r:1},{lat:22,lon:61,r:1},{lat:21,lon:63,r:1},{lat:20,lon:65,r:1},{lat:19.5,lon:67,r:1},{lat:19,lon:69.5,r:1},{lat:19,lon:72.9,r:1},{lat:17,lon:73.4,r:1},{lat:15.5,lon:73.8,r:1},{lat:13.5,lon:74.8,r:1},{lat:11.3,lon:75.8,r:1},{lat:9,lon:77.5,r:1},{lat:7,lon:79.9,r:1},{lat:5,lon:87,r:1},{lat:4.5,lon:90,r:1},{lat:4,lon:94,r:3}]},
+{id:'v6s06',t:'Adi bin Zayd and the Princess Hind',
+ u:'part49.html#section544',n:'Nights ~512–515',
+ d:'The pre-Islamic Arab poet Adi bin Zayd serves at the Sasanian court and falls in love with the Lakhmid princess Hind at al-Hira.',
+ w:[{lat:32,lon:44.4,r:3},{lat:33,lon:46,r:2},{lat:34,lon:48,r:3}]},
+{id:'v6s07',t:'How Abu Hasan Brake Wind',
+ u:'part49.html#section553',n:'Night ~520',
+ d:'On his wedding night in Kaukaban, Abu Hasan breaks wind so thunderously that he flees Yemen in shame — and returns decades later to find the date still remembered.',
+ w:[{lat:15,lon:44,r:3},{lat:14,lon:45,r:2}]},
+{id:'v6s08',t:'Ali the Cairene and the Haunted House in Baghdad',
+ u:'part50.html#section578',n:'Nights ~545–556',
+ d:'A Cairene merchant settles in a haunted Baghdad mansion and befriends the jinn who dwell beneath it, gaining vast treasure.',
+ w:[{lat:30,lon:31.2,r:3},{lat:30.8,lon:33.8,r:1},{lat:31.5,lon:34.5,r:1},{lat:31.8,lon:35.2,r:1},{lat:33.5,lon:36.3,r:1},{lat:34.6,lon:38.3,r:1},{lat:34.3,lon:40.2,r:1},{lat:33.5,lon:42.5,r:1},{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s09',t:'Abu Al-Husn and his Slave-Girl Tawaddud',
+ u:'part51.html#section592',n:'Nights ~556–567',
+ d:'A bankrupt Baghdad youth brings his learned slave-girl Tawaddud before the Caliph; she defeats every scholar in debate and wins him a fortune.',
+ w:[{lat:33.3,lon:44.4,r:4}]},
+{id:'v6s10',t:'Abu Nowas with the Three Boys and the Caliph',
+ u:'part47.html#section485',n:'Night ~458',
+ d:'Abu Nowas brings three clever youths before the Caliph, each with a witty riposte.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s11',t:'The Wazir of Al-Yaman and his Young Brother',
+ u:'part47.html#section491',n:'Night ~462',
+ d:'A Yemeni wazir\'s younger brother arrives at court and proves his worth through wisdom.',
+ w:[{lat:15,lon:44,r:3}]},
+{id:'v6s12',t:'The Loves of the Boy and Girl at School',
+ u:'part47.html#section492',n:'Night ~463',
+ d:'Two children fall in love at school and their devotion endures into adulthood.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s13',t:'Al-Mutalammis and his Wife Umaymah',
+ u:'part47.html#section494',n:'Night ~464',
+ d:'The pre-Islamic poet al-Mutalammis and his faithful wife Umaymah endure exile together.',
+ w:[{lat:26,lon:44,r:4}]},
+{id:'v6s14',t:'Harun Al-Rashid and Queen Zubaydah in the Bath',
+ u:'part47.html#section495',n:'Night ~465',
+ d:'The Caliph and Queen Zubaydah have a witty exchange during a visit to the hammam.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s15',t:'Harun Al-Rashid and the Three Poets',
+ u:'part47.html#section497',n:'Night ~466',
+ d:'Three poets compete before the Caliph for the prize of most eloquent verse.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s16',t:'Mus\'ab bin al-Zubayr and Ayishah his Wife',
+ u:'part47.html#section498',n:'Night ~467',
+ d:'The governor Mus\'ab and his wife Ayishah exchange words of love and fidelity in Medina.',
+ w:[{lat:24.5,lon:39.6,r:3}]},
+{id:'v6s17',t:'Abu al-Aswad and his Slave-Girl',
+ u:'part47.html#section500',n:'Night ~468',
+ d:'The grammarian Abu al-Aswad of Basra has a pointed exchange with his sharp-tongued slave-girl.',
+ w:[{lat:30.5,lon:47.8,r:3}]},
+{id:'v6s18',t:'Harun Al-Rashid and the Two Slave-Girls',
+ u:'part47.html#section501',n:'Night ~469',
+ d:'Two slave-girls debate love poetry before the Caliph, each championing a different verse.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s19',t:'Harun Al-Rashid and the Three Slave-Girls',
+ u:'part47.html#section502',n:'Night ~470',
+ d:'Three slave-girls each tell the Caliph the most extraordinary thing they have witnessed.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s20',t:'The Miller and his Wife',
+ u:'part47.html#section503',n:'Night ~471',
+ d:'A miller discovers his wife\'s infidelity through a trick involving flour.',
+ w:[{lat:30,lon:31.2,r:3}]},
+{id:'v6s21',t:'The Simpleton and the Sharper',
+ u:'part48.html#section505',n:'Night ~472',
+ d:'A naive countryman is swindled in the bazaar by a quick-witted sharper.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s22',t:'The Kazi Abu Yusuf with Harun Al-Rashid and Queen Zubaydah',
+ u:'part48.html#section506',n:'Night ~473',
+ d:'The chief judge settles a domestic dispute between the Caliph and his queen with Solomonic wisdom.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s23',t:'The Caliph al-Hakim and the Merchant',
+ u:'part48.html#section508',n:'Night ~474',
+ d:'The Fatimid Caliph al-Hakim encounters a merchant in Cairo whose honesty shames the court.',
+ w:[{lat:30,lon:31.2,r:3}]},
+{id:'v6s24',t:'King Kisra Anushirwan and the Village Damsel',
+ u:'part48.html#section509',n:'Night ~475',
+ d:'The Sasanian King of Kings stops at a village and is charmed by a peasant girl\'s wit.',
+ w:[{lat:33,lon:44.2,r:3}]},
+{id:'v6s25',t:'The Water-Carrier and the Goldsmith\'s Wife',
+ u:'part48.html#section511',n:'Night ~476',
+ d:'A water-carrier is entangled in an affair with a goldsmith\'s wife, with comic consequences.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s26',t:'Yahya bin Khalid the Barmecide and the Poor Man',
+ u:'part48.html#section514',n:'Night ~478',
+ d:'Yahya the Barmecide rescues a destitute man from despair with spontaneous generosity.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s27',t:'Mohammed al-Amin and the Slave-Girl',
+ u:'part48.html#section516',n:'Night ~479',
+ d:'The Caliph al-Amin falls in love with a slave-girl whose singing moves him to extravagance.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s28',t:'The Sons of Yahya bin Khalid and Sa\'id bin Salim al-Bahili',
+ u:'part48.html#section517',n:'Night ~480',
+ d:'The sons of the Barmecide wazir demonstrate the family\'s legendary generosity to a visiting Arab.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s29',t:'The Woman\'s Trick against her Husband',
+ u:'part48.html#section519',n:'Night ~481',
+ d:'A cunning wife outwits her suspicious husband with an elaborate ruse.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s30',t:'The Devout Woman and the Two Wicked Elders',
+ u:'part48.html#section521',n:'Night ~482',
+ d:'Two corrupt elders conspire against a chaste woman, echoing the tale of Susanna.',
+ w:[{lat:31.8,lon:35.2,r:3}]},
+{id:'v6s31',t:'Ja\'afar the Barmecide and the Old Badawi',
+ u:'part48.html#section522',n:'Night ~483',
+ d:'Ja\'afar encounters an aged Bedouin whose simple dignity humbles the great wazir.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s32',t:'The Caliph Omar bin al-Khattab and the Young Badawi',
+ u:'part48.html#section524',n:'Night ~484',
+ d:'The second Caliph Omar encounters a young Bedouin in Medina whose eloquence astonishes the court.',
+ w:[{lat:24.5,lon:39.6,r:3}]},
+{id:'v6s33',t:'The Thief and the Merchant',
+ u:'part48.html#section529',n:'Night ~487',
+ d:'A thief robs a merchant but is undone by his own carelessness.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s34',t:'Masrur the Eunuch and Ibn al-Karibi',
+ u:'part48.html#section531',n:'Night ~488',
+ d:'The Caliph\'s executioner Masrur has a memorable exchange with the poet Ibn al-Karibi.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s35',t:'The Devotee Prince',
+ u:'part48.html#section534',n:'Night ~489',
+ d:'A prince renounces his throne to become a wandering devotee.',
+ w:[{lat:34,lon:52,r:4}]},
+{id:'v6s36',t:'The Unwise Schoolmaster Who Fell in Love by Report',
+ u:'part49.html#section536',n:'Night ~490',
+ d:'A foolish schoolmaster falls in love with a woman he has never seen, based solely on description.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s37',t:'The Foolish Dominie',
+ u:'part49.html#section538',n:'Night ~491',
+ d:'A pedantic schoolteacher makes himself ridiculous through his own learned ignorance.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s38',t:'The Illiterate Who Set Up for a Schoolmaster',
+ u:'part49.html#section539',n:'Night ~492',
+ d:'An unlettered man pretends to be a teacher with farcical results.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s39',t:'The King and the Virtuous Wife',
+ u:'part49.html#section541',n:'Night ~493',
+ d:'A king tests the virtue of a woman famed for her chastity and finds it unshakeable.',
+ w:[{lat:34,lon:52,r:3}]},
+{id:'v6s40',t:'Di\'ibil al-Khuza\'i with the Lady and Muslim bin al-Walid',
+ u:'part49.html#section547',n:'Night ~513',
+ d:'The satirist Di\'ibil and the poet Muslim compete for a lady\'s favour in Baghdad.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s41',t:'Isaac of Mosul and the Merchant',
+ u:'part49.html#section548',n:'Night ~514',
+ d:'The musician Isaac of Mosul encounters a merchant whose singing surpasses the professionals.',
+ w:[{lat:36.3,lon:43.2,r:3}]},
+{id:'v6s42',t:'The Three Unfortunate Lovers',
+ u:'part49.html#section551',n:'Night ~516',
+ d:'Three men each tell the tale of a love that destroyed them \u2014 tribe of Udhrah, tribe of Amir, tribe of Tayy.',
+ w:[{lat:26,lon:42,r:4}]},
+{id:'v6s43',t:'The Lovers of the Banu Tayy',
+ u:'part49.html#section554',n:'Night ~520',
+ d:'A man of the Tayy tribe wastes away for love of a woman he cannot possess.',
+ w:[{lat:27.5,lon:41,r:3}]},
+{id:'v6s44',t:'The Mad Lover',
+ u:'part49.html#section556',n:'Night ~522',
+ d:'A lover driven mad wanders the desert reciting verses to the wind.',
+ w:[{lat:25,lon:42,r:4}]},
+{id:'v6s45',t:'The Prior Who Became a Moslem',
+ u:'part49.html#section558',n:'Night ~524',
+ d:'A Christian prior converts to Islam after witnessing a miraculous event.',
+ w:[{lat:33.5,lon:36.3,r:3}]},
+{id:'v6s46',t:'The Loves of Abu Isa and Kurrat al-Ayn',
+ u:'part50.html#section561',n:'Night ~526',
+ d:'Abu Isa, son of Caliph al-Rashid, falls hopelessly in love with the singer Kurrat al-Ayn.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s47',t:'Al-Amin Son of Al-Rashid and his Uncle Ibrahim bin al-Mahdi',
+ u:'part50.html#section566',n:'Night ~530',
+ d:'The Caliph al-Amin and his musical uncle Ibrahim share an evening of song and wine.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s48',t:'Al-Fath bin Khakan and the Caliph Al-Mutawakkil',
+ u:'part50.html#section568',n:'Night ~532',
+ d:'The Caliph\'s favourite companion al-Fath entertains him with verse at the court in Samarra.',
+ w:[{lat:34.2,lon:43.9,r:3}]},
+{id:'v6s49',t:'The Dispute of Men and Women on Relative Excellence',
+ u:'part50.html#section569',n:'Night ~534',
+ d:'A learned man and woman debate the superiority of their sexes before the Caliph.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s50',t:'Abu Suwayd and the Pretty Old Woman',
+ u:'part50.html#section574',n:'Night ~538',
+ d:'Abu Suwayd encounters an aged beauty who reminds him that time conquers all.',
+ w:[{lat:30.5,lon:47.8,r:3}]},
+{id:'v6s51',t:'The Emir Ali bin Tahir and the Girl Muunis',
+ u:'part50.html#section576',n:'Night ~540',
+ d:'An emir falls in love with a slave-girl named Muunis and defies convention to win her.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s52',t:'The Woman Who Had a Boy and the Other Who Had a Man to Lover',
+ u:'part50.html#section577',n:'Night ~542',
+ d:'Two women debate whether a young lover or a mature one is preferable.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v6s53',t:'The Pilgrim Man and the Old Woman',
+ u:'part51.html#section589',n:'Night ~555',
+ d:'A pilgrim on the road to Mecca meets an old woman whose wisdom surpasses the scholars.',
+ w:[{lat:21.4,lon:39.8,r:3}]},
+
+// ═══════════════════ VOLUMES 7–8 (Nights ~567–800) ═══════════════════
+
+{id:'v7s01',t:'The Queen of the Serpents',
+ u:'part55.html#section657',n:'Nights ~567–578',
+ d:'Hasib Karim al-Din, a woodcutter\'s son, falls into an underground cavern ruled by the Queen of the Serpents, who tells him the tale of Bulukiya.',
+ w:[{lat:33.3,lon:44.4,r:3},{lat:32,lon:42,r:3}]},
+{id:'v7s02',t:'The Adventures of Bulukiya',
+ u:'part55.html#section662',n:'Nights ~578–590',
+ d:'Bulukiya, an Israelite prince of Cairo, seeks the Prophet across the world — from Egypt through the Western Sea to the islands of camphor and the mountain of Kaf.',
+ w:[{lat:30,lon:31.2,r:3},{lat:31.2,lon:29.9,r:1},{lat:32,lon:25,r:1},{lat:32.5,lon:20,r:1},{lat:32.8,lon:16,r:1},{lat:32.9,lon:13.2,r:1},{lat:31,lon:10,r:1},{lat:30,lon:8,r:3},
+    {lat:31,lon:10,r:1},{lat:32.9,lon:13.2,r:1},{lat:32.8,lon:16,r:1},{lat:32.5,lon:20,r:1},{lat:32.3,lon:23,r:1},{lat:32,lon:25,r:1},{lat:31.2,lon:29.9,r:1},{lat:30,lon:31.2,r:1},
+    {lat:30,lon:32.5,r:1},{lat:28,lon:34,r:1},{lat:25,lon:36,r:1},{lat:23,lon:38,r:1},{lat:21.5,lon:39.2,r:1},
+    {lat:19,lon:40.5,r:1},{lat:17,lon:41.5,r:1},{lat:15,lon:42.5,r:1},{lat:13.5,lon:43,r:1},{lat:12.5,lon:43.5,r:1},{lat:12.8,lon:45,r:1},
+    {lat:14,lon:48,r:1},{lat:16,lon:52,r:1},{lat:18,lon:55,r:1},{lat:20,lon:57,r:1},{lat:22,lon:59,r:1},{lat:23.6,lon:58.5,r:1},{lat:22,lon:61,r:1},{lat:21,lon:63,r:1},{lat:20,lon:65,r:1},{lat:19.5,lon:67,r:1},{lat:17,lon:73.4,r:1},{lat:15.5,lon:73.8,r:1},{lat:13.5,lon:74.8,r:1},{lat:11.3,lon:75.8,r:1},{lat:9,lon:78,r:1},{lat:8,lon:80,r:3}]},
+{id:'v7s03',t:'The Story of Janshah',
+ u:'part56.html#section676',n:'Nights ~590–630',
+ d:'Prince Janshah of Kabul is shipwrecked on the Island of Apes, escapes through the lands of the Jinn, and pursues a bird-maiden across the world to the Castle of Doomed Gold.',
+ w:[{lat:34.5,lon:69.2,r:3},{lat:34,lon:71.5,r:1},{lat:31.55,lon:74.35,r:1},{lat:28.6,lon:77,r:1},{lat:25,lon:75,r:1},{lat:22,lon:73,r:1},{lat:19,lon:72.9,r:1},{lat:17,lon:73.4,r:1},{lat:15.5,lon:73.8,r:1},{lat:13.5,lon:74.8,r:1},{lat:11.3,lon:75.8,r:1},
+    {lat:9,lon:77.5,r:1},{lat:7,lon:73,r:1},{lat:8,lon:68,r:1},{lat:10,lon:63,r:1},{lat:12,lon:58,r:1},{lat:14,lon:53,r:1},{lat:15,lon:50,r:3},
+    {lat:14,lon:53,r:1},{lat:12,lon:58,r:1},{lat:10,lon:63,r:1},{lat:8,lon:68,r:1},{lat:7,lon:73,r:1},{lat:9,lon:77.5,r:1},
+    {lat:11.3,lon:75.8,r:1},{lat:13.5,lon:74.8,r:1},{lat:15.5,lon:73.8,r:1},{lat:17,lon:73.4,r:1},{lat:19,lon:72.9,r:1},{lat:22,lon:73,r:1},{lat:25,lon:75,r:1},{lat:28.6,lon:77,r:1},{lat:31.55,lon:74.35,r:1},{lat:34,lon:71.5,r:1},{lat:34.5,lon:69.2,r:3}]},
+{id:'v7s04',t:'Sindbad the Seaman — First Voyage',
+ u:'part58.html#section717',n:'Nights ~630–635',
+ d:'Sindbad sails from Basra and lands on what he thinks is an island — it is a sleeping whale that dives, leaving him adrift until rescued.',
+ w:[{lat:30.5,lon:47.8,r:3},{lat:29.5,lon:48.5,r:1},{lat:29,lon:48.2,r:1},{lat:28,lon:49.5,r:1},{lat:27,lon:50.5,r:1},{lat:25.5,lon:53,r:1},{lat:24.5,lon:54,r:1},{lat:23.6,lon:56,r:1},{lat:23.6,lon:58.5,r:1},{lat:23,lon:59.8,r:1},{lat:22,lon:61,r:1},{lat:20,lon:61.5,r:1},{lat:18,lon:62,r:3}]},
+{id:'v7s05',t:'Sindbad — Second Voyage',
+ u:'part58.html#section722',n:'Nights ~635–640',
+ d:'Left behind on a desert island, Sindbad discovers the Valley of Diamonds and escapes by tying himself to a Rukh\'s leg.',
+ w:[{lat:18,lon:62,r:2},{lat:19,lon:64,r:1},{lat:19.5,lon:67,r:1},{lat:19,lon:69.5,r:1},{lat:18,lon:72,r:1},{lat:15.5,lon:73.8,r:1},{lat:13,lon:73,r:1},{lat:10,lon:72,r:3}]},
+{id:'v7s06',t:'Sindbad — Third Voyage',
+ u:'part59.html#section727',n:'Nights ~640–648',
+ d:'Sindbad is captured by a giant ogre on an island, blinds him, and flees on a raft — only to encounter a vast serpent.',
+ w:[{lat:10,lon:72,r:2},{lat:8.5,lon:76,r:1},{lat:7,lon:79.9,r:1},{lat:6,lon:82,r:1},{lat:4,lon:81,r:1},{lat:2,lon:80,r:3}]},
+{id:'v7s07',t:'Sindbad — Fourth Voyage',
+ u:'part59.html#section732',n:'Nights ~648–656',
+ d:'Shipwrecked among cannibals who fatten captives, Sindbad escapes and reaches a kingdom where the dead are buried alive with their spouses.',
+ w:[{lat:2,lon:80,r:2},{lat:6,lon:82,r:1},{lat:7,lon:79.9,r:1},{lat:11.3,lon:75.8,r:1},{lat:15.5,lon:73.8,r:1},{lat:10,lon:76,r:3}]},
+{id:'v7s08',t:'Sindbad — Fifth Voyage',
+ u:'part59.html#section739',n:'Nights ~656–662',
+ d:'The Rukh destroys Sindbad\'s ship with boulders; he washes ashore on the island of the Old Man of the Sea, who rides his shoulders until tricked off with wine.',
+ w:[{lat:18,lon:62,r:2},{lat:19,lon:64,r:1},{lat:19.5,lon:67,r:1},{lat:19,lon:69.5,r:1},{lat:17,lon:73.4,r:1},{lat:15.5,lon:73.8,r:1},{lat:13.5,lon:74.8,r:1},{lat:11.3,lon:75.8,r:1},{lat:9,lon:78,r:1},{lat:7,lon:79.9,r:1},{lat:6,lon:78,r:3}]},
+{id:'v7s09',t:'Sindbad — Sixth Voyage',
+ u:'part60.html#section743',n:'Nights ~662–668',
+ d:'Sindbad is wrecked on a mountainous island; he builds a raft and rides an underground river through the mountain to Sarandib (Ceylon).',
+ w:[{lat:6,lon:78,r:2},{lat:8,lon:80,r:3},{lat:7,lon:80,r:2}]},
+{id:'v7s10',t:'Sindbad — Seventh Voyage',
+ u:'part60.html#section748',n:'Nights ~668–676',
+ d:'Sindbad\'s final voyage takes him to the land of the winged men; he returns to Baghdad and vows never to travel again.',
+ w:[{lat:30.5,lon:47.8,r:2},{lat:29.5,lon:48.5,r:1},{lat:29,lon:48.2,r:1},{lat:28,lon:49.5,r:1},{lat:27,lon:50.5,r:1},{lat:25.5,lon:53,r:1},{lat:24.5,lon:54,r:1},{lat:23.6,lon:56,r:1},{lat:23.6,lon:58.5,r:1},{lat:23,lon:59.8,r:1},{lat:22,lon:61,r:1},{lat:21,lon:63,r:1},{lat:20,lon:65,r:1},{lat:19.5,lon:67,r:1},{lat:19,lon:69.5,r:1},{lat:17,lon:73.4,r:1},{lat:15.5,lon:73.8,r:1},{lat:13.5,lon:74.8,r:1},{lat:11.3,lon:75.8,r:1},{lat:9,lon:78,r:1},{lat:7,lon:79.9,r:1},{lat:6,lon:80,r:3},
+    {lat:7,lon:79.9,r:1},{lat:9,lon:78,r:1},{lat:11.3,lon:75.8,r:1},{lat:13.5,lon:74.8,r:1},{lat:15.5,lon:73.8,r:1},{lat:17,lon:73.4,r:1},{lat:19,lon:69.5,r:1},{lat:19.5,lon:67,r:1},{lat:20,lon:65,r:1},{lat:21,lon:63,r:1},{lat:22,lon:61,r:1},{lat:23,lon:59.8,r:1},{lat:23.6,lon:58.5,r:1},{lat:23.6,lon:56,r:1},{lat:24.5,lon:54,r:1},{lat:25.5,lon:53,r:1},{lat:27,lon:50.5,r:1},{lat:28,lon:49.5,r:1},{lat:29,lon:48.2,r:1},{lat:30.5,lon:47.8,r:1},{lat:31.5,lon:47,r:1},{lat:32.5,lon:45.8,r:1},{lat:33.3,lon:44.4,r:3}]},
+{id:'v7s11',t:'The Angel of Death with the Proud King and the Devout Man',
+ u:'part53.html#section619',n:'Night ~567',
+ d:'The Angel of Death comes for a proud king who begs for delay, and for a devout man who welcomes him.',
+ w:[{lat:34,lon:52,r:4}]},
+{id:'v7s12',t:'The Angel of Death and the Rich King',
+ u:'part53.html#section620',n:'Night ~568',
+ d:'A wealthy king learns that his treasure cannot buy a single hour from the Angel of Death.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v7s13',t:'The Angel of Death and the King of the Children of Israel',
+ u:'part53.html#section622',n:'Night ~569',
+ d:'A king of Israel attempts to flee from the Angel of Death and learns that fate cannot be escaped.',
+ w:[{lat:31.8,lon:35.2,r:3}]},
+{id:'v7s14',t:'Iskandar Zu al-Karnayn and a Certain Tribe of Poor Folk',
+ u:'part53.html#section624',n:'Night ~570',
+ d:'Alexander the Great encounters a tribe who live justly and have no need of kings.',
+ w:[{lat:36,lon:59,r:4}]},
+{id:'v7s15',t:'The Righteousness of King Anushirwan',
+ u:'part53.html#section625',n:'Night ~571',
+ d:'The just Sasanian king Anushirwan demonstrates that a ruler\'s righteousness brings prosperity to the land.',
+ w:[{lat:33,lon:44.2,r:3}]},
+{id:'v7s16',t:'The Jewish Kazi and his Pious Wife',
+ u:'part53.html#section627',n:'Night ~572',
+ d:'A Jewish judge\'s pious wife teaches him humility through her quiet devotion.',
+ w:[{lat:31.8,lon:35.2,r:3}]},
+{id:'v7s17',t:'The Shipwrecked Woman and her Child',
+ u:'part53.html#section629',n:'Night ~573',
+ d:'A woman cast up by the sea with her child trusts in Providence and is saved.',
+ w:[{lat:32,lon:34,r:3}]},
+{id:'v7s18',t:'The Pious Black Slave',
+ u:'part54.html#section631',n:'Night ~574',
+ d:'A black slave\'s piety shames his master and earns divine favour.',
+ w:[{lat:24.5,lon:39.6,r:3}]},
+{id:'v7s19',t:'The Devout Tray-Maker and his Wife',
+ u:'part54.html#section633',n:'Night ~575',
+ d:'A humble tray-maker and his devout wife are rewarded for their faith.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v7s20',t:'Al-Hajjaj and the Pious Man',
+ u:'part54.html#section636',n:'Night ~576',
+ d:'The tyrannical governor al-Hajjaj encounters a pious man whose fearlessness disarms him.',
+ w:[{lat:32,lon:44.4,r:3}]},
+{id:'v7s21',t:'The Blacksmith Who Could Handle Fire Without Hurt',
+ u:'part54.html#section638',n:'Night ~577',
+ d:'A blacksmith whose piety grants him immunity from fire amazes all who witness him.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v7s22',t:'The Devotee to Whom Allah Gave a Cloud for Service',
+ u:'part54.html#section641',n:'Night ~578',
+ d:'A holy man so favoured by God that a cloud follows him to give shade wherever he walks.',
+ w:[{lat:25,lon:42,r:4}]},
+{id:'v7s23',t:'The Moslem Champion and the Christian Damsel',
+ u:'part54.html#section643',n:'Night ~579',
+ d:'A Muslim warrior captures a Christian maiden; their encounter leads to her conversion through his nobility.',
+ w:[{lat:34.7,lon:36.7,r:3}]},
+{id:'v7s24',t:'The Christian King\'s Daughter and the Moslem',
+ u:'part54.html#section647',n:'Night ~580',
+ d:'A Christian princess secretly converts to Islam for love of a Muslim prisoner.',
+ w:[{lat:41,lon:29,r:3}]},
+{id:'v7s25',t:'The Prophet and the Justice of Providence',
+ u:'part54.html#section649',n:'Night ~581',
+ d:'A prophet witnesses seemingly unjust acts of Providence and learns that divine wisdom surpasses human understanding.',
+ w:[{lat:31.8,lon:35.2,r:3}]},
+{id:'v7s26',t:'The Ferryman of the Nile and the Hermit',
+ u:'part54.html#section651',n:'Night ~582',
+ d:'A Nile ferryman and a hermit discuss fate and free will as they cross the river.',
+ w:[{lat:30,lon:31.2,r:3}]},
+{id:'v7s27',t:'The Island King and the Pious Israelite',
+ u:'part54.html#section652',n:'Night ~583',
+ d:'A pious Israelite is shipwrecked on an island whose king tests his faith.',
+ w:[{lat:33,lon:35,r:3}]},
+{id:'v7s28',t:'Abu al-Hasan and Abu Ja\'afar the Leper',
+ u:'part55.html#section655',n:'Night ~585',
+ d:'Abu al-Hasan befriends a leper named Abu Ja\'afar in Baghdad and learns compassion.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v8s01',t:'The City of Brass',
+ u:'part61.html#section753',n:'Nights ~676–693',
+ d:'The Emir Musa marches west across the Sahara seeking Solomon\'s brass vessels — finding petrified cities, a sea of sand, and the legendary City of Brass with its sleeping dead.',
+ w:[{lat:33.5,lon:36.3,r:3},{lat:31.8,lon:35.2,r:1},{lat:30.8,lon:33.8,r:1},{lat:30.04,lon:31.24,r:1},{lat:31.2,lon:29.9,r:1},{lat:32,lon:25,r:1},{lat:32.5,lon:20,r:1},{lat:32.9,lon:13.2,r:2},{lat:30,lon:8,r:3}]},
+{id:'v8s02',t:'Judar and his Brethren',
+ u:'part65.html#section822',n:'Nights ~740–756',
+ d:'Judar, a poor Cairo fisherman, is recruited by a Maghribi sorcerer to open a treasure-lake near Fez; he returns wealthy but is poisoned by his jealous brothers.',
+ w:[{lat:30,lon:31.2,r:3},{lat:31.2,lon:29.9,r:1},{lat:32,lon:25,r:1},{lat:32.5,lon:20,r:1},{lat:32.9,lon:13.2,r:1},{lat:34,lon:10,r:1},{lat:34,lon:5,r:3}]},
+{id:'v8s03',t:'History of Gharib and his Brother Ajib',
+ u:'part66.html#section841',n:'Nights ~756–800',
+ d:'An epic of pre-Islamic Arabia: the hero Gharib, raised among the Banu Qahtan, converts to Islam, fights jinn and fire-worshippers from Iraq to India.',
+ w:[{lat:24,lon:44,r:3},{lat:26,lon:45.5,r:1},{lat:27,lon:46,r:1},{lat:28.5,lon:47,r:1},{lat:30.5,lon:47.8,r:1},{lat:31.5,lon:47,r:1},{lat:32.5,lon:45.8,r:1},{lat:33.3,lon:44.4,r:3},
+    {lat:32.5,lon:45.8,r:1},{lat:31.5,lon:47,r:1},{lat:30.5,lon:47.8,r:1},{lat:29.5,lon:48.5,r:1},{lat:28,lon:49.5,r:1},{lat:27,lon:50.5,r:1},{lat:25.5,lon:53,r:1},{lat:24.5,lon:54,r:1},{lat:23.6,lon:56,r:1},{lat:23.6,lon:58.5,r:1},{lat:23,lon:59.8,r:1},{lat:22,lon:61,r:1},{lat:21,lon:63,r:1},{lat:20,lon:65,r:1},{lat:19.5,lon:67,r:1},{lat:19,lon:69.5,r:1},{lat:19,lon:72.9,r:1},{lat:22,lon:73,r:1},{lat:25,lon:75,r:1},{lat:28.6,lon:77,r:3}]},
+{id:'v8s04',t:'Craft and Malice of Women, or the Tale of the King, his Son, his Concubine and the Seven Wazirs',
+ u:'part62.html#section766',n:'Nights ~693\u2013738',
+ d:'A prince is condemned to death by his father\'s concubine; seven wazirs and the concubine each tell tales to sway the king \u2014 a cycle of stories about the wiles of women and the cunning of men.',
+ w:[{lat:34,lon:52,r:4}]},
+
+// ═══════════════════ VOLUMES 9–10 (Nights ~800–1001) ═══════════════════
+
+{id:'v9s01',t:'The Rogueries of Dalilah the Crafty',
+ u:'part72.html#section929',n:'Nights ~800–815',
+ d:'Dalilah and her daughter Zaynab run a crime spree through Baghdad, outwitting merchants, the Caliph\'s men, and even the great thief Ahmad al-Danaf.',
+ w:[{lat:33.3,lon:44.4,r:4}]},
+{id:'v9s02',t:'Ardashir and Hayat Al-Nufus',
+ u:'part74.html#section952',n:'Nights ~815–835',
+ d:'Prince Ardashir of Persia falls in love with Hayat al-Nufus, daughter of the Emperor of Constantinople, and overcomes her champion to win her hand.',
+ w:[{lat:32.7,lon:51.7,r:3},{lat:34.8,lon:48.5,r:1},{lat:34.3,lon:47,r:1},{lat:33.3,lon:44.4,r:1},{lat:33.5,lon:42.5,r:1},{lat:34.3,lon:40.2,r:1},{lat:34.6,lon:38.3,r:1},{lat:33.5,lon:36.3,r:1},{lat:34.7,lon:36.7,r:1},{lat:36.2,lon:37.1,r:1},{lat:37,lon:35,r:1},{lat:38.5,lon:34,r:1},{lat:39.9,lon:32.9,r:1},{lat:40.5,lon:30,r:1},{lat:41,lon:29,r:3}]},
+{id:'v9s03',t:'Julnar the Sea-Born and her Son King Badr Basim of Persia',
+ u:'part76.html#section972',n:'Nights ~835–860',
+ d:'A sea-princess sold as a slave bears a son who becomes king; he journeys to the underwater kingdom and the City of the Magians before winning the sorceress queen.',
+ w:[{lat:30.5,lon:47.8,r:3},{lat:29.5,lon:48.5,r:1},{lat:29,lon:48.2,r:1},{lat:28,lon:49.5,r:1},{lat:27,lon:50.5,r:1},{lat:25.5,lon:53,r:1},{lat:24.5,lon:54,r:1},{lat:23.6,lon:56,r:1},{lat:23.6,lon:58.5,r:1},{lat:22,lon:58.5,r:1},{lat:20,lon:58,r:3},
+    {lat:22,lon:58.5,r:1},{lat:23.6,lon:58.5,r:1},{lat:23.6,lon:56,r:1},{lat:24.5,lon:54,r:1},{lat:25.5,lon:53,r:1},{lat:27,lon:50.5,r:1},{lat:28.5,lon:52,r:1},{lat:29.6,lon:52.6,r:3}]},
+{id:'v9s04',t:'Sayf al-Muluk and the Princess Badi\'a al-Jamal',
+ u:'part78.html#section994',n:'Nights ~870–900',
+ d:'Prince Sayf of Egypt sails to the land of the Jinn seeking a princess seen in a portrait; his journey crosses the Sea of Darkness to Solomon\'s enchanted island.',
+ w:[{lat:30,lon:31.2,r:3},{lat:30,lon:32.5,r:1},{lat:28,lon:34,r:1},{lat:25,lon:36,r:1},{lat:23,lon:38,r:1},{lat:21.5,lon:39.2,r:1},
+    {lat:19,lon:40.5,r:1},{lat:17,lon:41.5,r:1},{lat:15,lon:42.5,r:1},{lat:13.5,lon:43,r:1},{lat:12.5,lon:43.5,r:1},{lat:12.8,lon:45,r:1},
+    {lat:14,lon:48,r:1},{lat:16,lon:52,r:1},{lat:18,lon:55,r:1},{lat:20,lon:57,r:1},{lat:22,lon:59,r:1},{lat:23.6,lon:58.5,r:1},{lat:23,lon:59.8,r:1},{lat:22,lon:61,r:1},{lat:21,lon:63,r:1},{lat:20,lon:65,r:1},{lat:19.5,lon:67,r:1},{lat:19,lon:69.5,r:1},{lat:19,lon:72.9,r:1},{lat:17,lon:73.4,r:1},{lat:15.5,lon:73.8,r:1},{lat:13.5,lon:74.8,r:1},{lat:11.3,lon:75.8,r:1},{lat:9,lon:77.5,r:1},{lat:7,lon:79.9,r:1},{lat:5,lon:87,r:1},{lat:4.5,lon:90,r:1},{lat:4,lon:92,r:3}]},
+{id:'v9s05',t:'Hasan of Bassorah',
+ u:'part80.html#section1015',n:'Nights ~900–940',
+ d:'A Basra goldsmith is tricked by a Persian alchemist, carried to Cloud Mountain, and wins a bird-maiden wife; when she flies home he crosses the world to reclaim her.',
+ w:[{lat:30.5,lon:47.8,r:3},{lat:29.5,lon:48.5,r:1},{lat:29,lon:48.2,r:1},{lat:28,lon:49.5,r:1},{lat:27,lon:50.5,r:1},{lat:25.5,lon:53,r:1},{lat:24.5,lon:54,r:1},{lat:23.6,lon:56,r:1},{lat:23.6,lon:58.5,r:1},{lat:23,lon:59.8,r:1},{lat:22,lon:61,r:1},{lat:21,lon:63,r:1},{lat:20,lon:65,r:1},{lat:19.5,lon:67,r:1},{lat:17,lon:67.5,r:1},{lat:14,lon:68,r:1},{lat:12,lon:68,r:3},
+    {lat:14,lon:68,r:1},{lat:17,lon:67.5,r:1},{lat:19.5,lon:67,r:1},{lat:20,lon:65,r:1},{lat:21,lon:63,r:1},{lat:22,lon:61,r:1},{lat:23,lon:59.8,r:1},{lat:23.6,lon:58.5,r:1},{lat:23.6,lon:56,r:1},{lat:24.5,lon:54,r:1},{lat:25.5,lon:53,r:1},{lat:27,lon:50.5,r:1},{lat:28,lon:49.5,r:1},{lat:29,lon:48.2,r:1},{lat:30.5,lon:47.8,r:3}]},
+{id:'v9s06',t:'Otbah and Rayya',
+ u:'part70.html#section898',n:'Night ~800',
+ d:'Otbah of the Banu Udhrah dies of love for Rayya \u2014 the quintessential Udhri romance of the Hijaz.',
+ w:[{lat:24,lon:39,r:4}]},
+{id:'v9s07',t:'Hind, Daughter of al-Nu\'man, and al-Hajjaj',
+ u:'part71.html#section900',n:'Night ~802',
+ d:'The proud princess Hind defies the tyrant al-Hajjaj at his court in Kufa.',
+ w:[{lat:32,lon:44.4,r:3}]},
+{id:'v9s08',t:'Khuzaymah bin Bishr and Ikrimah al-Fayyaz',
+ u:'part71.html#section903',n:'Night ~804',
+ d:'Two Arab chiefs compete in generosity until one beggars himself to outdo the other.',
+ w:[{lat:25,lon:42,r:4}]},
+{id:'v9s09',t:'Yunus the Scribe and the Caliph Walid bin Sahl',
+ u:'part71.html#section905',n:'Night ~805',
+ d:'The scribe Yunus serves the Umayyad Caliph al-Walid in Damascus and witnesses the court\'s intrigues.',
+ w:[{lat:33.5,lon:36.3,r:3}]},
+{id:'v9s10',t:'Harun Al-Rashid and the Arab Girl',
+ u:'part71.html#section907',n:'Night ~806',
+ d:'The Caliph encounters a Bedouin girl whose eloquence and beauty captivate the court.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v9s11',t:'Al-Asma\'i and the Three Girls of Bassorah',
+ u:'part71.html#section909',n:'Night ~807',
+ d:'The philologist al-Asma\'i meets three Basran girls who outshine him in grammar and poetry.',
+ w:[{lat:30.5,lon:47.8,r:3}]},
+{id:'v9s12',t:'Ibrahim of Mosul and the Devil',
+ u:'part71.html#section911',n:'Night ~808',
+ d:'The musician Ibrahim of Mosul meets a jinni who plays music more beautiful than any mortal\'s.',
+ w:[{lat:36.3,lon:43.2,r:3}]},
+{id:'v9s13',t:'The Lovers of the Banu Uzrah',
+ u:'part71.html#section913',n:'Night ~810',
+ d:'Another tale of the Banu Udhrah \u2014 the tribe famed for dying of love \u2014 a youth wastes away for a woman forbidden to him.',
+ w:[{lat:26,lon:38,r:4}]},
+{id:'v9s14',t:'The Badawi and his Wife',
+ u:'part71.html#section917',n:'Night ~812',
+ d:'A Bedouin and his sharp-tongued wife exchange barbs in the desert.',
+ w:[{lat:28,lon:42,r:4}]},
+{id:'v9s15',t:'The Lovers of Bassorah',
+ u:'part72.html#section920',n:'Night ~813',
+ d:'A pair of lovers in Basra are separated by family honour and reunited only in death.',
+ w:[{lat:30.5,lon:47.8,r:3}]},
+{id:'v9s16',t:'Ishak of Mosul and his Mistress and the Devil',
+ u:'part72.html#section923',n:'Night ~814',
+ d:'Isaac the musician\'s mistress is possessed by a jinni; he plays until the spirit departs.',
+ w:[{lat:36.3,lon:43.2,r:3},{lat:35.5,lon:43.4,r:1},{lat:34.2,lon:43.9,r:1},{lat:33.3,lon:44.4,r:3}]},
+{id:'v9s17',t:'The Lovers of al-Medinah',
+ u:'part72.html#section925',n:'Night ~815',
+ d:'A love story set among the people of Medina, ending in devotion unto death.',
+ w:[{lat:24.5,lon:39.6,r:3}]},
+{id:'v9s18',t:'Al-Malik al-Nasir and his Wazir',
+ u:'part72.html#section927',n:'Night ~816',
+ d:'The Sultan al-Nasir of Egypt and his cunning wazir match wits in Cairo.',
+ w:[{lat:30,lon:31.2,r:3}]},
+{id:'v9s19',t:'The Adventures of Mercury Ali of Cairo',
+ u:'part73.html#section940',n:'Nights ~808\u2013815',
+ d:'Mercury Ali, master thief of Cairo, outwits police and merchants alike in a dazzling crime spree through the city.',
+ w:[{lat:30,lon:31.2,r:3}]},
+{id:'v9s20',t:'King Mohammed bin Sabaik and the Merchant Hasan',
+ u:'part78.html#section991',n:'Night ~870',
+ d:'The frame story in which the merchant Hasan tells King Mohammed the tale of Prince Sayf al-Muluk.',
+ w:[{lat:30,lon:31.2,r:3}]},
+{id:'v10s01',t:'Khalifah the Fisherman of Baghdad',
+ u:'part85.html#section1069',n:'Nights ~940–950',
+ d:'A poor Baghdad fisherman catches a monkey, then a chest of jewels, and blunders his way into the Caliph\'s favour.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v10s02',t:'Ali Nur Al-Din and Miriam the Girdle-Girl',
+ u:'part88.html#section1104',n:'Nights ~960–975',
+ d:'Ali, a young Cairene, is captured by Frankish pirates and taken to a Christian city; he wins the love of Miriam and together they fight their way back to Egypt.',
+ w:[{lat:30,lon:31.2,r:3},{lat:31.2,lon:29.9,r:1},{lat:32,lon:25,r:1},{lat:32.5,lon:20,r:1},{lat:33,lon:18,r:1},{lat:34,lon:18,r:1},{lat:35.5,lon:18.5,r:1},{lat:37,lon:19.5,r:1},{lat:38,lon:20,r:3},
+    {lat:37,lon:19.5,r:1},{lat:35.5,lon:18.5,r:1},{lat:34,lon:18,r:1},{lat:33,lon:18,r:1},{lat:32.5,lon:20,r:1},{lat:32,lon:25,r:1},{lat:31.2,lon:29.9,r:1},{lat:30,lon:31.2,r:3}]},
+{id:'v10s03',t:'Abu Kir the Dyer and Abu Sir the Barber',
+ u:'part96.html#section1193',n:'Nights ~985–995',
+ d:'Two Alexandrian tradesmen sail to a foreign city; the treacherous dyer cheats everyone while the honest barber builds a bathhouse and wins the king\'s trust.',
+ w:[{lat:31.2,lon:29.9,r:3},{lat:31.5,lon:31,r:1},{lat:32,lon:33,r:1},{lat:33,lon:35,r:1},{lat:31.5,lon:35.5,r:1},{lat:30,lon:35.5,r:1},{lat:28,lon:36,r:2}]},
+{id:'v10s04',t:'Abdullah the Fisherman and Abdullah the Merman',
+ u:'part97.html#section1204',n:'Nights ~995–1000',
+ d:'A poor fisherman befriends a merman who takes him to an underwater kingdom; the contrast between land and sea customs makes a gentle satire.',
+ w:[{lat:33,lon:35,r:3},{lat:32.5,lon:34.5,r:3}]},
+{id:'v10s05',t:'Ma\'aruf the Cobbler and his Wife',
+ u:'part103.html#section1259',n:'Nights ~1000–1001',
+ d:'Ma\'aruf flees his shrewish wife in Cairo, is magically transported to a distant city, and bluffs his way to kingship by pretending a great caravan follows him.',
+ w:[{lat:30,lon:31.2,r:3},{lat:30.8,lon:33.8,r:1},{lat:31.5,lon:34.5,r:1},{lat:31.8,lon:35.2,r:1},{lat:33.5,lon:36.3,r:1},{lat:34.6,lon:38.3,r:1},{lat:34.3,lon:40.2,r:1},{lat:33.5,lon:42.5,r:1},{lat:33.3,lon:44.4,r:1},{lat:34.3,lon:47,r:1},{lat:34.8,lon:48.5,r:1},{lat:32.7,lon:51.7,r:1},{lat:34,lon:56,r:3}]},
+{id:'v10s06',t:'Khalifah the Fisherman of Baghdad (Calcutta Edition)',
+ u:'part86.html#section1084',n:'Nights ~940\u2013950',
+ d:'An alternate version of Khalifah\'s tale from the Calcutta edition, with different episodes and a variant ending.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v10s07',t:'Masrur and Zayn al-Mawasif',
+ u:'part87.html#section1085',n:'Nights ~950\u2013958',
+ d:'Masrur of Baghdad falls in love with the beautiful Zayn al-Mawasif and pursues her across Iraq.',
+ w:[{lat:33.3,lon:44.4,r:3},{lat:32.5,lon:45.8,r:1},{lat:30.5,lon:47.8,r:3}]},
+{id:'v10s08',t:'The Man of Upper Egypt and his Frankish Wife',
+ u:'part92.html#section1136',n:'Night ~980',
+ d:'A man of Upper Egypt marries a Frankish woman; their clashing customs make a comedy of manners.',
+ w:[{lat:26,lon:32.5,r:3}]},
+{id:'v10s09',t:'The Ruined Man of Baghdad and his Slave-Girl',
+ u:'part92.html#section1139',n:'Night ~982',
+ d:'A ruined Baghdad merchant\'s slave-girl saves him from destitution through her wit and loyalty.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v10s10',t:'King Jali\'ad of Hind and his Wazir Shimas',
+ u:'part92.html#section1143',n:'Nights ~982\u2013995',
+ d:'An Indian king and his wise wazir exchange a cycle of moral fables \u2014 animals, merchants, and rogues \u2014 to illuminate the art of governance.',
+ w:[{lat:28.6,lon:77,r:4}]},
+{id:'v10s11',t:'Harun al-Rashid and Abu Hasan, the Merchant of Oman',
+ u:'part97.html#section1211',n:'Night ~996',
+ d:'A wealthy merchant of Oman visits Baghdad and entertains the Caliph with tales of the sea trade.',
+ w:[{lat:23.6,lon:58.5,r:3},{lat:27,lon:50.5,r:1},{lat:30.5,lon:47.8,r:1},{lat:33.3,lon:44.4,r:3}]},
+{id:'v10s12',t:'Ibrahim and Jamilah',
+ u:'part98.html#section1218',n:'Nights ~997\u2013998',
+ d:'Ibrahim, a young man of Baghdad, falls in love with the beautiful Jamilah and overcomes her father\'s opposition.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v10s13',t:'Abu al-Hasan of Khorasan',
+ u:'part99.html#section1226',n:'Night ~998',
+ d:'A man of Khorasan arrives in Baghdad and astonishes the Caliph\'s court with his learning and liberality.',
+ w:[{lat:36,lon:59,r:3},{lat:35.5,lon:58.5,r:1},{lat:34,lon:56,r:1},{lat:32.7,lon:51.7,r:1},{lat:34.3,lon:47,r:1},{lat:33.3,lon:44.4,r:3}]},
+{id:'v10s14',t:'Kamar al-Zaman and the Jeweller\'s Wife',
+ u:'part99.html#section1231',n:'Night ~999',
+ d:'A young man named Kamar al-Zaman (not the prince) is entangled with a jeweller\'s wife in Baghdad.',
+ w:[{lat:33.3,lon:44.4,r:3}]},
+{id:'v10s15',t:'Abdullah bin Fazil and his Brothers',
+ u:'part101.html#section1247',n:'Night ~1000',
+ d:'Abdullah and his treacherous brothers \u2014 a tale of betrayal and divine justice set between Baghdad and the sea.',
+ w:[{lat:33.3,lon:44.4,r:3},{lat:32.5,lon:45.8,r:1},{lat:30.5,lon:47.8,r:3}]}
+];
+
+/* ═══════════════════════ GEOGRAPHY ═══════════════════════ */
+const GEO={
+land:[
+  // ── Southern Europe: Greece, Balkans, Crete ─────────────
+  [[20,40],[21,39],[22.5,38.5],[23,37.5],[22,37],[21,37.5],[20,38.5],[19,39.5],[20,40]],
+  [[23.5,35.5],[25,35],[26,35.5],[24.5,35.5],[23.5,35.5]], // Crete
+  [[20,44],[22,44],[25,42],[26,41.5],[27,38],[25.5,37.5],[23,38.5],[21,39],[20,40],[18,40],[15,41],[15,44],[20,44]], // Balkans fill
+
+  // ── Turkey (Anatolia) ──────────────────────────────────
+  // South coast (Mediterranean)
+  [[27,37],[29,36.5],[31,36.5],[33,36.8],[35,36.5],[36,36.5],
+  // East – Levant coast
+   [36,34],[35.5,33],[35,32],[34.5,31],
+  // Up through eastern Turkey / Caucasus
+   [36.5,32.5],[37,32.5],[39,31],[41,31.5],[43,31.5],[45,30.5],
+  // North along Iraq border to E. Turkey
+   [44.5,37.5],[44,38.5],[43,39.5],[42,40.5],[41,41],
+  // Black Sea south coast (eastward)
+   [40,41.5],[38,41.5],[36,41.8],[34,42],[32,41.8],[30,41.5],[28.5,41.5],
+  // Bosporus area → Aegean
+   [27,41],[26.5,40],[27,39],[27,38],[27,37]],
+  // Northern Turkey fill to map edge
+  [[15,48],[90,48],[90,44],[41,44],[41,41],[40,41.5],[38,41.5],[36,41.8],
+   [34,42],[32,41.8],[30,41.5],[28.5,41.5],[27,41],[26.5,40],[25,42],
+   [22,44],[20,44],[15,44],[15,48]],
+
+  // ── Iran / Central Asia / Caucasus ─────────────────────
+  // Southern coastline: Gulf of Oman → Baluchistan → Pakistan
+  [[44,38.5],[46,39.5],[49,39],[51,38],[54,37.5],[57,37.5],[60,36.5],
+   [63,37],[67,37.5],[71,37],[75,34],[74,30],[71,26],[68,25.5],
+   [64,26],[60,25.5],[57.5,25.5],[56.5,26.5],[54.5,27],[52,27.5],
+   [50,28.5],[48.5,30],[47.5,30.5],[45,30.5],[43,31.5],[41,31.5],
+   [43,31.5],[45,30.5],[44.5,37.5],[44,38.5]],
+  // Central Asia northern fill
+  [[41,41],[41,44],[90,44],[90,37],[75,34],[71,37],[67,37.5],[63,37],
+   [60,36.5],[57,37.5],[54,37.5],[51,38],[49,39],[46,39.5],[44,38.5],
+   [44.5,37.5],[43,39.5],[42,40.5],[41,41]],
+
+  // ── Indian subcontinent ────────────────────────────────
+  [[67,25],[66.5,24],[67,23],[68,22],[69.5,22],[70.5,21],[71.5,20.5],
+   [72,19.5],[72.5,18],[73,16],[73.5,14.5],[74.5,13],[75.5,11.5],
+   [76.5,10],[77.5,8.5],
+   // Eastern coast
+   [78.5,8.5],[79.5,10],[80,11.5],[80.5,13.5],[81,16],[82,17.5],
+   [83.5,19.5],[85,21],[87,22],[88.5,22.5],[89,24],
+   // Northern edge (Himalayas / Indo-Gangetic)
+   [88.5,26.5],[86,27],[83,27.5],[80,29],[77,31],[75,33],
+   [73,35],[71,35],[69,33],[68,30],[67,27],[67,25]],
+  // Sri Lanka
+  [[80,10],[80.5,8.5],[81.5,7],[82,7.5],[81.5,9],[80.5,10],[80,10]],
+
+  // ── Arabian Peninsula ──────────────────────────────────
+  [[36.5,31.5],[37.5,28.5],[38.5,25],[39.5,22],[40.5,19],[41.5,16],
+   [43.5,13.5],[46,12.5],[49,13],[52,15.5],[56,18.5],[58.5,21],
+   [59.5,22.5],[57,24.5],[55,24],[53,25],[51,26.5],[49.5,28.5],
+   [48.5,30],[47.5,30.5],[45,30.5],[43,31.5],[41,31.5],[39,31],
+   [37,32.5],[36.5,31.5]],
+
+  // ── NE Africa (Egypt, Sudan, Horn, Libya coast) ────────
+  [[15,31],[20,32],[25,31.5],[29,31.5],[31,31.5],[33,31.5],[34.5,31.5],
+   [34.8,29],[34,27],[34.5,24.5],[35.5,21],[37.5,17],[40,14],
+   [43.5,12],[46,11],[48,11.5],[50,12],
+   // Horn of Africa (Somalia coast)
+   [51,11.5],[49,9],[47,7],[45,5],[44,3],
+   // South/west edge
+   [40,3],[35,3],[25,5],[15,8],[15,31]],
+
+  // ── East Africa (partial, south of Horn) ───────────────
+  [[40,3],[41,2],[42.5,1],[44,1],[46,3],[45,5],[44,3],[40,3]],
+
+  // ── Libya / North Africa fill (Sahara not water) ──────
+  // Mediterranean coast from Tunisia to Egypt, filling interior
+  [[10,34],[11,33],[13,33],[15,32],[20,32],[25,31.5],[29,31.5],
+   [29,32],[25,33],[20,33],[15,33],[13,34],[11,35],[10,37],
+   [8,37],[5,37],[2,37],[0,36],[0,33],[2,33],[5,33],[8,34],[10,34]],
+  // Sahara interior (Libya/Chad fill south to existing NE Africa)
+  [[0,33],[0,28],[2,26],[5,24],[8,22],[10,20],[12,18],
+   [13,16],[14,14],[15,12],[15,8],[15,15],[15,18],[15,31],
+   [15,32],[13,33],[10,33],[8,33],[5,33],[2,33],[0,33]],
+
+  // ── Pakistan / Rajasthan / Thar gap fill ─────────────
+  // Bridges the Iran polygon and India polygon
+  [[68,25.5],[71,26],[74,30],[75,33],[75,34],
+   [73,35],[71,35],[69,33],[68,30],[67,27],[67,25],[68,25.5]],
+
+  // ── Himalaya / Nepal / Tibet fill ────────────────────
+  // Fills gap between Central Asia (bottom ~lat 37) and India (top ~lat 27-33)
+  [[75,34],[77,31],[80,29],[83,27.5],[86,27],[88.5,26.5],
+   [89,24],[90,24],[90,37],[75,34]]
+],
+water:[
+  // Caspian Sea
+  [[49,42.5],[49.5,40.5],[50,39],[50.5,38],[51,37.5],[51.5,38],[52,39.5],
+   [52,41],[51,42],[49.5,42.5],[49,42.5]],
+  // Black Sea
+  [[28,41.5],[29,41],[30,41.5],[32,41.8],[34,42],[36,41.8],[38,41.5],
+   [40,41.5],[41,41],[41.5,41.5],[41,42.5],[39.5,43.5],[37,44],
+   [34,44.5],[31,44.5],[28.5,44],[27,43],[27.5,42],[28,41.5]],
+  // Aral Sea (remnant)
+  [[58.5,45],[59.5,44.5],[60.5,44.5],[61,45.5],[60,46.5],[58.5,46],[58.5,45]],
+  // Sea of Marmara / Aegean gap (small water cut)
+  [[26.5,40],[27,41],[28,41.5],[27.5,42],[26.5,41.5],[26,41],[26.5,40]]
+],
+rivers:[
+  // Tigris
+  [[44,38.5],[44.2,37],[44,36],[44.5,35],[44.3,34],[44.5,33],[45.5,32],[46.5,31.5],[47.5,30.5]],
+  // Euphrates
+  [[38.2,37],[39.5,36],[41,34.5],[43,33.5],[44.5,33],[45.5,32],[46.5,31.5],[47.5,30.5]],
+  // Nile
+  [[31.2,31.5],[31,30],[31.3,28],[31.8,26],[32.2,24],[32.6,22],[33,19],[33.3,16],[33.8,13],[34,11],[34,8]],
+  // Shatt al-Arab
+  [[47.5,30.5],[48,30],[48.3,29.5]],
+  // Indus
+  [[68,25.5],[68.5,27.5],[69,29.5],[69.5,31],[70,32.5],[71,34]],
+  // Ganges
+  [[78,31],[80,28],[81.5,27],[83,26.5],[85,25.5],[87,24],[88.5,23.5],[89,24]],
+  // Amu Darya (Oxus)
+  [[59,43.5],[60,42],[62,40],[64,39],[66,38.5],[67,37.5]],
+  // Syr Darya
+  [[59,44.5],[62,43],[65,42],[68,41.5],[70,40]],
+  // Brahmaputra (partial)
+  [[89,24],[90,27],[91,28]],
+  // Jordan River
+  [[35.5,33],[35.5,32],[35.5,31.5]]
+]};
+
+/* ═══════════════════════ STATE ═══════════════════════ */
+const cv=document.getElementById('C'), cx=cv.getContext('2d');
+const panel=document.getElementById('panel'), PC=document.getElementById('PC');
+let sc=1, px=0, py=0;
+const MINS=0.04, MAXS=6;
+let hoverHex=null, activeStoryId=null;
+
+// hex → {count, stories:[{id,t,u,n,d},...]}
+const hexMap=new Map();
+// story id → Set of hex keys
+const storyHexSets=new Map();
+
+/* ═══════════════════════ PROJECTION ═══════════════════════ */
+function gk(lon,lat){return{x:(lon-LON0)*KPL,y:(lat-LAT0)*KPA}}
+function ks(x,y){return{sx:x*sc+px,sy:-y*sc+py}}
+function sk(sx,sy){return{x:(sx-px)/sc,y:-(sy-py)/sc}}
+function gs(lon,lat){const k=gk(lon,lat);return ks(k.x,k.y)}
+
+/* ═══════════════════════ HEX MATH ═══════════════════════ */
+function h2k(q,r){return{x:R_KM*1.5*q,y:R_KM*S3*(r+q*.5)}}
+function k2h(x,y){
+  const q=(2/3*x)/R_KM, r=(-1/3*x+S3/3*y)/R_KM;
+  return cr(q,r);
+}
+function cr(q,r){
+  let x=q,z=r,y=-x-z;
+  let rx=Math.round(x),ry=Math.round(y),rz=Math.round(z);
+  const xd=Math.abs(rx-x),yd=Math.abs(ry-y),zd=Math.abs(rz-z);
+  if(xd>yd&&xd>zd)rx=-ry-rz;else if(yd>zd)ry=-rx-rz;else rz=-rx-ry;
+  return{q:rx,r:rz};
+}
+function hd(a,b){const as=-a.q-a.r,bs=-b.q-b.r;return Math.max(Math.abs(a.q-b.q),Math.abs(a.r-b.r),Math.abs(as-bs))}
+function s2h(sx,sy){const k=sk(sx,sy);return k2h(k.x,k.y)}
+
+function hexLine(a,b){
+  const N=hd(a,b),out=[];
+  for(let i=0;i<=N;i++){
+    const t=N===0?0:i/N;
+    out.push({hex:cr(a.q+(b.q-a.q)*t, a.r+(b.r-a.r)*t), t});
+  }
+  return out;
+}
+
+function hexRing(cq,cr2,rad){
+  const out=[];
+  for(let dq=-rad;dq<=rad;dq++){
+    for(let dr=Math.max(-rad,-dq-rad);dr<=Math.min(rad,-dq+rad);dr++){
+      out.push({q:cq+dq,r:cr2+dr});
+    }
+  }
+  return out;
+}
+
+// Deterministic hash for organic edges
+function hh(q,r){return(((q*73856093)^(r*19349663))>>>0)%100}
+
+/* ═══════════════════════ COVERAGE COMPUTATION ═══════════════════════ */
+function initCoverage(){
+  hexMap.clear(); storyHexSets.clear();
+
+  for(const story of filteredStories()){
+    const myHexes=new Set();
+    const wp=story.w;
+
+    for(let i=0;i<wp.length;i++){
+      if(wp.length===1 || i===wp.length-1 && wp.length>1){
+        // Handle last waypoint (or single-waypoint blob)
+        if(i>0) continue; // already handled by route
+        if(wp.length===1){
+          const km=gk(wp[0].lon,wp[0].lat);
+          const ch=k2h(km.x,km.y);
+          const rad=wp[0].r;
+          for(const h of hexRing(ch.q,ch.r,rad)){
+            const dist=hd(ch,h);
+            // Organic edge: include edge hexes ~65% of the time
+            if(dist<rad || (dist===rad && hh(h.q,h.r)<65)){
+              myHexes.add(h.q+','+h.r);
+            }
+          }
+        }
+        continue;
+      }
+
+      // Route segment from wp[i] to wp[i+1]
+      const km1=gk(wp[i].lon,wp[i].lat), km2=gk(wp[i+1].lon,wp[i+1].lat);
+      const h1=k2h(km1.x,km1.y), h2=k2h(km2.x,km2.y);
+      const line=hexLine(h1,h2);
+
+      for(const{hex,t}of line){
+        const rad=Math.round(wp[i].r+(wp[i+1].r-wp[i].r)*t);
+        for(const h of hexRing(hex.q,hex.r,rad)){
+          const dist=hd(hex,h);
+          if(dist<rad || (dist===rad && hh(h.q,h.r)<65)){
+            myHexes.add(h.q+','+h.r);
+          }
+        }
+      }
+    }
+
+    storyHexSets.set(story.id,myHexes);
+
+    for(const key of myHexes){
+      if(!hexMap.has(key)) hexMap.set(key,{count:0,stories:[]});
+      const entry=hexMap.get(key);
+      entry.count++;
+      entry.stories.push({id:story.id,t:story.t,u:story.u,n:story.n,d:story.d});
+    }
+  }
+}
+
+/* ═══════════════════════ CSS VAR HELPER ═══════════════════════ */
+function cv2(v){return getComputedStyle(document.body).getPropertyValue(v).trim()}
+
+// Cache CSS vars — refreshed on theme change
+let _css={};
+function refreshCSS(){
+  _css={
+    water:cv2('--water'),land:cv2('--land'),landEdge:cv2('--land-edge'),
+    river:cv2('--river'),gridLine:cv2('--grid-line'),
+    labelCol:cv2('--label-col'),labelBg:cv2('--label-bg'),
+    d1:cv2('--d1'),d2:cv2('--d2'),d3:cv2('--d3'),d5:cv2('--d5'),d10:cv2('--d10'),
+    hi:cv2('--hi'),hiStroke:cv2('--hi-stroke'),dim:cv2('--dim')
+  };
+}
+
+// Pre-compute hex angle cos/sin (never changes)
+const HEX_COS=[], HEX_SIN=[];
+for(let i=0;i<6;i++){const a=Math.PI/3*i;HEX_COS[i]=Math.cos(a);HEX_SIN[i]=Math.sin(a)}
+
+// Pre-parse hex keys into numeric q,r arrays for fast iteration
+let hexArr=[]; // [{q,r,key,entry}]
+function buildHexArr(){
+  hexArr=[];
+  for(const[key,entry]of hexMap){
+    const p=key.indexOf(',');
+    hexArr.push({q:+key.slice(0,p),r:+key.slice(p+1),key,entry});
+  }
+}
+
+/* ═══════════════════════ THEME ═══════════════════════ */
+let _drawReady=false;
+function isDark(){return document.body.classList.contains('dark')}
+function applyTheme(t){
+  document.body.classList.toggle('dark',t==='dark');
+  refreshCSS();
+  if(_drawReady) draw();
+}
+// Initial theme — draw() not ready yet, just sets class + CSS cache
+applyTheme(localStorage.getItem('theme')||'light');
+window.addEventListener('storage',e=>{if(e.key==='theme')applyTheme(e.newValue||'light')});
+document.getElementById('themeBtn').addEventListener('click',()=>{
+  const n=isDark()?'light':'dark';localStorage.setItem('theme',n);applyTheme(n);
+});
+
+/* ═══════════════════════ DRAW (rAF debounced) ═══════════════════════ */
+let _rafId=0;
+_drawReady=true;
+function draw(){
+  if(!_rafId) _rafId=requestAnimationFrame(_draw);
+}
+function _draw(){
+  _rafId=0;
+  const dpr=devicePixelRatio||1, w=cv.width/dpr, h=cv.height/dpr;
+  cx.setTransform(dpr,0,0,dpr,0,0);
+
+  // Water
+  cx.fillStyle=_css.water; cx.fillRect(0,0,w,h);
+
+  // Land — batch all land polygons into one path
+  cx.fillStyle=_css.land; cx.strokeStyle=_css.landEdge; cx.lineWidth=1;
+  cx.beginPath();
+  for(const p of GEO.land){
+    for(let i=0;i<p.length;i++){const s=gs(p[i][0],p[i][1]);i?cx.lineTo(s.sx,s.sy):cx.moveTo(s.sx,s.sy)}
+    cx.closePath();
+  }
+  cx.fill();cx.stroke();
+
+  // Water bodies
+  cx.fillStyle=_css.water;
+  cx.beginPath();
+  for(const p of GEO.water){
+    for(let i=0;i<p.length;i++){const s=gs(p[i][0],p[i][1]);i?cx.lineTo(s.sx,s.sy):cx.moveTo(s.sx,s.sy)}
+    cx.closePath();
+  }
+  cx.fill();
+
+  // Rivers
+  cx.strokeStyle=_css.river; cx.lineWidth=Math.max(1,sc*3); cx.lineCap='round';cx.lineJoin='round';
+  for(const r of GEO.rivers){
+    cx.beginPath();
+    for(let i=0;i<r.length;i++){const s=gs(r[i][0],r[i][1]);i?cx.lineTo(s.sx,s.sy):cx.moveTo(s.sx,s.sy)}
+    cx.stroke();
+  }
+
+  const hR=R_KM*sc, hW=hR*2;
+
+  // Background hex grid — only when zoomed enough, with tighter cell limit
+  if(hW>8) drawGrid(w,h,hR);
+
+  // Story hexes
+  drawStory(hR,hW,w,h);
+
+  // Labels
+  if(hW>10) drawLabels(hW,hR);
+}
+
+function drawGrid(w,h,hR){
+  const corners=[sk(0,0),sk(w,0),sk(0,h),sk(w,h)];
+  const hc=corners.map(c=>k2h(c.x,c.y));
+  let qn=Infinity,qx=-Infinity,rn=Infinity,rx=-Infinity;
+  for(const c of hc){qn=Math.min(qn,c.q);qx=Math.max(qx,c.q);rn=Math.min(rn,c.r);rx=Math.max(rx,c.r)}
+  qn-=2;qx+=2;rn-=2;rx+=2;
+  if((qx-qn)*(rx-rn)>8000)return; // tighter limit
+
+  cx.strokeStyle=_css.gridLine; cx.lineWidth=0.5; cx.setLineDash([]);
+  cx.beginPath();
+  const ww=w+hR*2,hh2=h+hR*2;
+  for(let q=qn;q<=qx;q++){
+    for(let r=rn;r<=rx;r++){
+      const km=h2k(q,r), s=ks(km.x,km.y);
+      if(s.sx<-hR*2||s.sx>ww||s.sy<-hR*2||s.sy>hh2)continue;
+      const rr=hR-1;
+      for(let i=0;i<6;i++){
+        const x2=s.sx+rr*HEX_COS[i],y2=s.sy-rr*HEX_SIN[i];
+        i?cx.lineTo(x2,y2):cx.moveTo(x2,y2);
+      }
+      cx.closePath();
+    }
+  }
+  cx.stroke();
+}
+
+function densityColor(n){
+  if(n>=10)return _css.d10;
+  if(n>=5)return _css.d5;
+  if(n>=3)return _css.d3;
+  if(n>=2)return _css.d2;
+  return _css.d1;
+}
+
+function drawStory(hR,hW,w,h){
+  const dark=isDark();
+  const hiSet=activeStoryId?storyHexSets.get(activeStoryId):null;
+  const hiCol=_css.hi, hiStroke=_css.hiStroke, dimCol=_css.dim;
+  const hovFill=dark?'rgba(250,190,70,.88)':'rgba(210,110,40,.88)';
+  const hovStroke=dark?'rgba(255,220,100,.9)':'rgba(140,50,15,.9)';
+  const defStroke=dark?'rgba(200,140,60,.3)':'rgba(100,40,15,.35)';
+  const rr=hR-(hW>12?1:0);
+  const useCircle=hW<5;
+  const circR=Math.max(2.5,hR*.5);
+  const margin=hR*2;
+
+  // Batch dim hexes, batch normal hexes by density, draw highlighted/hovered individually
+  // For simplicity and speed: single pass, skip off-screen
+  for(let idx=0;idx<hexArr.length;idx++){
+    const hx=hexArr[idx];
+    const km=h2k(hx.q,hx.r);
+    const sx=km.x*sc+px, sy=-km.y*sc+py;
+    if(sx<-margin||sx>w+margin||sy<-margin||sy>h+margin) continue;
+
+    const isHov=hoverHex&&hoverHex.q===hx.q&&hoverHex.r===hx.r;
+    const isHi=hiSet&&hiSet.has(hx.key);
+    const isDimmed=hiSet&&!isHi;
+
+    let fill, stroke2, lw;
+    if(isDimmed){fill=dimCol;stroke2=null;lw=0}
+    else if(isHi){fill=hiCol;stroke2=hiStroke;lw=2}
+    else if(isHov){fill=hovFill;stroke2=hovStroke;lw=2.5}
+    else{fill=densityColor(hx.entry.count);stroke2=defStroke;lw=1}
+
+    if(useCircle){
+      cx.beginPath();cx.arc(sx,sy,circR,0,6.2832);
+      cx.fillStyle=fill;cx.fill();
+    } else {
+      cx.beginPath();
+      cx.moveTo(sx+rr*HEX_COS[0],sy-rr*HEX_SIN[0]);
+      for(let i=1;i<6;i++) cx.lineTo(sx+rr*HEX_COS[i],sy-rr*HEX_SIN[i]);
+      cx.closePath();
+      cx.fillStyle=fill;cx.fill();
+      if(lw>0){cx.strokeStyle=stroke2;cx.lineWidth=lw;cx.setLineDash([]);cx.stroke()}
+    }
+  }
+}
+
+function drawLabels(hW,hR){
+  // Show city labels for major clusters
+  const labels=[
+    ['Baghdad',33.32,44.37],['Basra',30.51,47.78],['Cairo',30.04,31.24],
+    ['Damascus',33.51,36.28],['Mosul',36.35,43.16],['Aleppo',36.2,37.13],
+    ['Samarkand',39.65,66.96],['Kashgar',39.47,75.99],
+    ['Isfahan',32.65,51.67],['Lake Van',38.5,43.3],
+    ['Magnetic Mtn.',18.9,62.9],['Persian Gulf',26.55,52.1],
+    // Expanded labels
+    ['Constantinople',41.01,28.98],['Athens',37.97,23.72],
+    ['Mecca',21.42,39.83],['Medina',24.47,39.61],
+    ['Muscat',23.59,58.54],['Aden',12.78,45.02],
+    ['Delhi',28.61,77.21],['Mumbai',19.08,72.88],
+    ['Kabul',34.53,69.17],['Herat',34.35,62.2],
+    ['Bukhara',39.77,64.42],['Merv',37.6,62.19],
+    ['Jerusalem',31.77,35.23],['Hormuz',27.1,56.28],
+    ['Alexandria',31.2,29.92],['Lahore',31.55,74.35],
+    ['Karachi',24.86,67.01],['Khartoum',15.59,32.53],
+    ['Mogadishu',2.05,45.32],['Socotra',12.5,54],
+    ['Colombo',6.93,79.86],['Calicut',11.25,75.78],
+    ['Shiraz',29.59,52.58],['Tabriz',38.08,46.29],
+    ['Ankara',39.93,32.86],['Balkh',36.76,66.9]
+  ];
+
+  const fs=Math.max(12,Math.min(20,hW*.22));
+  cx.textBaseline='middle';cx.textAlign='left';
+
+  for(const[name,lat,lon]of labels){
+    const s=gs(lon,lat);
+    const lx=s.sx+hR+8, ly=s.sy;
+
+    // City dot
+    cx.beginPath();cx.arc(s.sx,s.sy,Math.max(3,hR*.18),0,Math.PI*2);
+    cx.fillStyle=_css.labelCol;cx.fill();
+
+    cx.font=`700 ${fs}px Georgia,"Times New Roman",serif`;
+    const met=cx.measureText(name);
+
+    cx.fillStyle=_css.labelBg;
+    cx.beginPath();
+    if(cx.roundRect) cx.roundRect(lx-5,ly-fs*.62,met.width+10,fs*1.24,5);
+    else{cx.rect(lx-5,ly-fs*.62,met.width+10,fs*1.24)}
+    cx.fill();
+
+    cx.fillStyle=_css.labelCol;
+    cx.fillText(name,lx,ly);
+  }
+}
+
+/* ═══════════════════════ INPUT ═══════════════════════ */
+const act=new Map();
+let lm=null,ld=0,ds=null,dragging=false;
+
+function gm(){const p=[...act.values()];return{x:p.reduce((s,a)=>s+a.x,0)/p.length,y:p.reduce((s,a)=>s+a.y,0)/p.length}}
+function gd(){if(act.size<2)return 0;const[a,b]=[...act.values()];return Math.hypot(a.x-b.x,a.y-b.y)}
+
+cv.addEventListener('pointerdown',e=>{
+  cv.setPointerCapture(e.pointerId);
+  act.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  lm=gm();ld=gd();
+  if(act.size===1){ds={x:e.clientX,y:e.clientY};dragging=false}
+  cv.classList.add('grabbing');cv.classList.remove('pointer');
+});
+cv.addEventListener('pointermove',e=>{
+  if(!act.has(e.pointerId))return;
+  act.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  const m=gm(),d=gd();
+  px+=m.x-lm.x;py+=m.y-lm.y;
+  if(ld>4&&d>4){const p=sc;sc=Math.max(MINS,Math.min(MAXS,sc*(d/ld)));const r=sc/p;px=m.x+(px-m.x)*r;py=m.y+(py-m.y)*r}
+  lm=m;ld=d;
+  if(ds&&Math.hypot(e.clientX-ds.x,e.clientY-ds.y)>6)dragging=true;
+  if(act.size===1)hoverHex=s2h(e.clientX,e.clientY);
+  draw();
+});
+cv.addEventListener('pointerup',e=>{
+  const ws=act.size===1;
+  act.delete(e.pointerId);lm=act.size?gm():null;ld=gd();
+  if(ws&&!dragging&&ds){
+    const h=s2h(e.clientX,e.clientY),key=h.q+','+h.r;
+    if(hexMap.has(key)){openPanel(key);}else{closePanel()}
+  }
+  ds=null;dragging=false;
+  if(!act.size){cv.classList.remove('grabbing');uc(e.clientX,e.clientY)}
+  draw();
+});
+cv.addEventListener('pointercancel',e=>{act.delete(e.pointerId);lm=null;ld=0;ds=null;dragging=false;cv.classList.remove('grabbing')});
+cv.addEventListener('mousemove',e=>{
+  if(act.size)return;
+  const h=s2h(e.clientX,e.clientY);
+  if(!hoverHex||h.q!==hoverHex.q||h.r!==hoverHex.r){hoverHex=h;draw()}
+  uc(e.clientX,e.clientY);
+});
+cv.addEventListener('mouseleave',()=>{hoverHex=null;cv.classList.remove('pointer');draw()});
+function uc(x,y){const h=s2h(x,y);cv.classList.toggle('pointer',hexMap.has(h.q+','+h.r))}
+
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const f=e.deltaY<0?1.12:.89,p=sc;
+  sc=Math.max(MINS,Math.min(MAXS,sc*f));
+  const r=sc/p;px=e.clientX+(px-e.clientX)*r;py=e.clientY+(py-e.clientY)*r;
+  draw();
+},{passive:false});
+
+/* ═══════════════════════ PANEL ═══════════════════════ */
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+function openPanel(key){
+  const entry=hexMap.get(key);
+  if(!entry)return;
+  const[q,r]=key.split(',').map(Number);
+  const km=h2k(q,r);
+  const geo={lon:LON0+km.x/KPL,lat:LAT0+km.y/KPA};
+
+  let html=`<h2>${entry.count} Tale${entry.count>1?'s':''} at This Hex</h2>`;
+  html+=`<div class="meta">Lat ${geo.lat.toFixed(1)}&deg;, Lon ${geo.lon.toFixed(1)}&deg; &middot; Hex (${q}, ${r})</div>`;
+  html+=`<div class="story-list">`;
+
+  // Deduplicate by story id (a story only appears once per hex)
+  const seen=new Set();
+  for(const s of entry.stories){
+    if(seen.has(s.id))continue;seen.add(s.id);
+    const url=s.u.startsWith('http')?s.u:B+s.u;
+    const isActive=activeStoryId===s.id;
+    html+=`<div class="sc${isActive?' active':''}" data-sid="${esc(s.id)}">`;
+    html+=`<div class="st">${esc(s.t)}</div>`;
+    html+=`<div class="sn">${esc(s.n)}</div>`;
+    html+=`<div class="sd">${esc(s.d)}</div>`;
+    html+=`<a class="sl" href="${esc(url)}" target="_blank" rel="noreferrer" onclick="event.stopPropagation()">Read on burtoniana.org &rarr;</a>`;
+    html+=`</div>`;
+  }
+  html+=`</div>`;
+  html+=`<div style="margin-top:18px;font-size:.78rem;color:var(--text-muted);line-height:1.4">`;
+  html+=`Click a tale card to highlight its route on the map.<br>`;
+  html+=`Source: <a href="${B}index.html" target="_blank" rel="noreferrer" style="color:var(--link)">Burton 1885</a> via burtoniana.org</div>`;
+
+  PC.innerHTML=html;
+  // Close index panel when hex panel opens
+  indexPanel.classList.remove('open');
+  indexBtn.classList.remove('active-btn');
+  indexOpen=false;
+  panel.classList.add('open');
+
+  // Story card click → highlight route
+  PC.querySelectorAll('.sc').forEach(el=>{
+    el.addEventListener('click',function(ev){
+      if(ev.target.tagName==='A')return;
+      const sid=this.dataset.sid;
+      activeStoryId=activeStoryId===sid?null:sid;
+      // Re-render panel to update active state
+      openPanel(key);
+      draw();
+    });
+  });
+
+  draw();
+}
+
+function closePanel(){
+  activeStoryId=null;
+  panel.classList.remove('open');
+  draw();
+}
+document.getElementById('panelClose').addEventListener('click',closePanel);
+
+/* ═══════════════════════ VOLUME FILTER ═══════════════════════ */
+const VOLUMES=[
+  {key:'s',  label:'Volume I \u2014 Nights 1\u2013100'},
+  {key:'v2s',label:'Volume II \u2014 Nights 100\u2013200'},
+  {key:'v3s',label:'Volume III \u2014 Nights 200\u2013270'},
+  {key:'v4s',label:'Volume IV \u2014 Nights 270\u2013371'},
+  {key:'v5s',label:'Volume V \u2014 Nights 371\u2013453'},
+  {key:'v6s',label:'Volume VI \u2014 Nights 453\u2013567'},
+  {key:'v7s',label:'Volumes VII\u2013VIII \u2014 Nights 567\u2013800'},
+  {key:'v8s',label:'Volume VIII (cont.)'},
+  {key:'v9s',label:'Volumes IX\u2013X \u2014 Nights 800\u20131001'},
+  {key:'v10s',label:'Volume X (cont.)'}
+];
+// All volumes on by default
+const volEnabled=new Set(VOLUMES.map(v=>v.key));
+const filterPanel=document.getElementById('filterPanel');
+const filterBtn=document.getElementById('filterBtn');
+let filterOpen=false;
+
+function storyVolKey(id){
+  for(let i=VOLUMES.length-1;i>=0;i--){
+    if(VOLUMES[i].key==='s'?(/^s\d/.test(id)&&!id.startsWith('v')):id.startsWith(VOLUMES[i].key)) return VOLUMES[i].key;
+  }
+  return 's';
+}
+
+function filteredStories(){
+  return STORIES.filter(s=>volEnabled.has(storyVolKey(s.id)));
+}
+
+function buildFilterPanel(){
+  let html='<h3>Filter by Volume</h3>';
+  for(const vol of VOLUMES){
+    const checked=volEnabled.has(vol.key)?'checked':'';
+    html+='<label class="filter-row"><input type="checkbox" data-vk="'+vol.key+'" '+checked+'><span>'+vol.label+'</span></label>';
+  }
+  html+='<div class="filter-actions">';
+  html+='<button class="filter-act" id="filterAll">All</button>';
+  html+='<button class="filter-act" id="filterNone">None</button>';
+  html+='</div>';
+  const cnt=filteredStories().length;
+  html+='<div class="filter-count">'+cnt+' of '+STORIES.length+' tales shown</div>';
+  filterPanel.innerHTML=html;
+
+  filterPanel.querySelectorAll('input[data-vk]').forEach(cb=>{
+    cb.addEventListener('change',function(){
+      if(this.checked) volEnabled.add(this.dataset.vk);
+      else volEnabled.delete(this.dataset.vk);
+      applyFilter();
+    });
+  });
+  document.getElementById('filterAll').addEventListener('click',()=>{
+    VOLUMES.forEach(v=>volEnabled.add(v.key));
+    applyFilter();
+  });
+  document.getElementById('filterNone').addEventListener('click',()=>{
+    volEnabled.clear();
+    applyFilter();
+  });
+}
+
+function applyFilter(){
+  activeStoryId=null;
+  initCoverage();
+  buildHexArr();
+  buildFilterPanel();
+  if(indexOpen) buildIndexPanel();
+  draw();
+}
+
+function toggleFilter(){
+  filterOpen=!filterOpen;
+  filterPanel.classList.toggle('open',filterOpen);
+  filterBtn.classList.toggle('active-btn',filterOpen);
+  if(filterOpen) buildFilterPanel();
+}
+
+filterBtn.addEventListener('click',toggleFilter);
+// Close filter when clicking outside
+document.addEventListener('click',e=>{
+  if(filterOpen&&!filterPanel.contains(e.target)&&e.target!==filterBtn){
+    filterOpen=false;
+    filterPanel.classList.remove('open');
+    filterBtn.classList.remove('active-btn');
+  }
+});
+
+/* ═══════════════════════ INDEX PANEL ═══════════════════════ */
+const indexPanel=document.getElementById('indexPanel');
+const IPC=document.getElementById('IPC');
+const indexBtn=document.getElementById('indexBtn');
+let indexOpen=false;
+
+function buildIndexPanel(){
+  const visible=filteredStories();
+  let html='<h2>Story Index</h2>';
+  html+='<div class="idx-count">'+visible.length+' of '+STORIES.length+' tales shown</div>';
+
+  for(const vol of VOLUMES){
+    if(!volEnabled.has(vol.key)) continue;
+    const group=visible.filter(s=>storyVolKey(s.id)===vol.key);
+    if(!group.length) continue;
+
+    html+='<div class="vol-heading">'+vol.label+'</div>';
+    html+='<div class="story-list">';
+    for(const s of group){
+      const url=s.u.startsWith('http')?s.u:B+s.u;
+      const isActive=activeStoryId===s.id;
+      html+='<div class="sc'+(isActive?' active':'')+'" data-sid="'+esc(s.id)+'">';
+      html+='<div class="st">'+esc(s.t)+'</div>';
+      html+='<div class="sn">'+esc(s.n)+'</div>';
+      html+='<div class="sd">'+esc(s.d)+'</div>';
+      html+='<a class="sl" href="'+esc(url)+'" target="_blank" rel="noreferrer" onclick="event.stopPropagation()">Read on burtoniana.org &rarr;</a>';
+      html+='</div>';
+    }
+    html+='</div>';
+  }
+
+  html+='<div style="margin-top:18px;font-size:.78rem;color:var(--text-muted);line-height:1.4">';
+  html+='Click a tale card to highlight its route on the map.<br>';
+  html+='Source: <a href="'+B+'index.html" target="_blank" rel="noreferrer" style="color:var(--link)">Burton 1885</a> via burtoniana.org</div>';
+
+  IPC.innerHTML=html;
+
+  // Wire up story card clicks
+  IPC.querySelectorAll('.sc').forEach(el=>{
+    el.addEventListener('click',function(ev){
+      if(ev.target.tagName==='A') return;
+      const sid=this.dataset.sid;
+      activeStoryId=activeStoryId===sid?null:sid;
+      buildIndexPanel();
+      draw();
+    });
+  });
+}
+
+function openIndexPanel(){
+  // Close other panels
+  panel.classList.remove('open');
+  filterOpen=false;filterPanel.classList.remove('open');filterBtn.classList.remove('active-btn');
+  buildIndexPanel();
+  indexPanel.classList.add('open');
+  indexBtn.classList.add('active-btn');
+  indexOpen=true;
+}
+
+function closeIndexPanel(){
+  indexPanel.classList.remove('open');
+  indexBtn.classList.remove('active-btn');
+  indexOpen=false;
+  if(!panel.classList.contains('open')){activeStoryId=null;draw();}
+}
+
+indexBtn.addEventListener('click',()=>{
+  if(indexOpen) closeIndexPanel(); else openIndexPanel();
+});
+document.getElementById('indexPanelClose').addEventListener('click',closeIndexPanel);
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePanel();closeIndexPanel();filterOpen=false;filterPanel.classList.remove('open');filterBtn.classList.remove('active-btn');}});
+
+/* ═══════════════════════ RESIZE / INIT ═══════════════════════ */
+function resize(){
+  const dpr=devicePixelRatio||1,w=innerWidth,h=innerHeight;
+  cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);
+  cv.style.width=w+'px';cv.style.height=h+'px';
+  draw();
+}
+
+function resetView(){
+  const w=innerWidth,h=innerHeight;
+  // Show from Cairo to Kashgar: center on ~50°E, 28°N
+  sc=Math.min(w,h)/6300;
+  if(sc<MINS)sc=MINS;
+  const center=gk(50,28);
+  px=w/2-center.x*sc; py=h/2+center.y*sc;
+  draw();
+}
+
+document.getElementById('homeBtn').addEventListener('click',resetView);
+
+initCoverage();
+buildHexArr();
+refreshCSS();
+window.addEventListener('resize',resize);
+resize();resetView();
+
+// Count total story hex entries
+let totalEntries=0;
+for(const[,e]of hexMap)totalEntries+=e.count;
+console.log(`Arabian Nights map: ${hexMap.size} unique hexes, ${totalEntries} story-hex entries across ${STORIES.length} tales`);
+
+setTimeout(()=>{const h=document.getElementById('hint');if(h){h.style.transition='opacity 1s';h.style.opacity='0';setTimeout(()=>{if(h)h.style.display='none'},1000)}},4000);
+
+}());
+</script>
+</body>
+</html>

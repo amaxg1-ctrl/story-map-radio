@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STREAM</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Theme tokens ──────────────────────────────────────────────── */
+    :root {
+      --bg-a: #eceef2; --bg-b: #d8dae1;
+      --accent:        rgb(255,136,0);
+      --accent-rgb:    255,136,0;
+      --accent-glow:   rgba(255,136,0,0.38);
+      --accent-ring:   rgba(255,136,0,0.13);
+      --accent-bg:     rgba(255,136,0,0.16);
+      --accent-border: rgba(255,136,0,0.55);
+      --text:          rgba(88,90,102,0.82);
+      --text-muted:    #b0b3bc;
+      --status:        #c4c6ce;
+      --btn-bg:        rgba(158,161,170,0.26);
+      --btn-border:    rgba(255,255,255,0.55);
+      --btn-inset:     rgba(255,255,255,0.45);
+    }
+
+    body.dark {
+      --bg-a: #13141a; --bg-b: #0f1014;
+      --accent:        rgb(160,80,255);
+      --accent-rgb:    160,80,255;
+      --accent-glow:   rgba(160,80,255,0.44);
+      --accent-ring:   rgba(160,80,255,0.15);
+      --accent-bg:     rgba(160,80,255,0.18);
+      --accent-border: rgba(160,80,255,0.58);
+      --text:          rgba(200,202,218,0.85);
+      --text-muted:    rgba(140,142,158,0.75);
+      --status:        rgba(120,122,138,0.75);
+      --btn-bg:        rgba(42,44,58,0.55);
+      --btn-border:    rgba(255,255,255,0.10);
+      --btn-inset:     rgba(255,255,255,0.05);
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: linear-gradient(150deg, var(--bg-a) 0%, var(--bg-b) 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      user-select: none; -webkit-user-select: none;
+      transition: background 0.3s;
+    }
+
+    /* ── App name ──────────────────────────────────────────────────── */
+    .app-name {
+      font-size: 11px; font-weight: 400;
+      letter-spacing: 0.5em; text-transform: uppercase;
+      color: var(--text-muted); margin-bottom: 4px;
+      transition: color 0.3s;
+    }
+
+    /* ── Stage ─────────────────────────────────────────────────────── */
+    .stage {
+      position: relative;
+      width: min(500px, 68vmin); height: min(500px, 68vmin);
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    #wheelCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+    /* ── Controls ──────────────────────────────────────────────────── */
+    .controls { position: relative; z-index: 10; display: flex; align-items: center; gap: 12px; }
+
+    .btn {
+      position: relative; width: 58px; height: 58px; border-radius: 50%;
+      border: 1.5px solid var(--btn-border);
+      background: var(--btn-bg);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      color: var(--text); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.18s, box-shadow 0.18s, color 0.18s, border-color 0.18s;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+      outline: none; -webkit-tap-highlight-color: transparent;
+    }
+    .btn:hover:not(:disabled) { filter: brightness(1.12); }
+    .btn.active {
+      background: var(--accent-bg); border-color: var(--accent-border); color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-ring), 0 0 22px var(--accent-glow),
+                  0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+    }
+    .btn:disabled { opacity: 0.28; cursor: default; }
+    .btn svg { width: 21px; height: 21px; flex-shrink: 0; pointer-events: none; }
+    .btn-label {
+      position: absolute; bottom: -21px; left: 50%; transform: translateX(-50%);
+      font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--text-muted); white-space: nowrap; pointer-events: none;
+    }
+
+    /* ── Info ──────────────────────────────────────────────────────── */
+    .info { margin-top: 0; margin-bottom: 40px; text-align: center; }
+    .status-text {
+      font-size: 9.5px; letter-spacing: 0.28em; text-transform: uppercase;
+      color: var(--status); transition: color 0.3s;
+    }
+
+    /* ── Track info ───────────────────────────────────────────────── */
+    .track-info {
+      margin-top: 6px;
+      font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--text-muted); transition: color 0.3s;
+      max-width: 300px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    /* ── Settings bar ──────────────────────────────────────────────── */
+    .settings-bar {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 0;
+      background: var(--btn-bg);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--btn-border); border-radius: 40px;
+      padding: 5px 6px 5px 10px; z-index: 200;
+      box-shadow: 0 4px 28px rgba(0,0,0,0.12);
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .settings-label {
+      font-size: 9.5px; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--text-muted); min-width: 108px; text-align: center;
+      transition: color 0.3s;
+    }
+    .settings-actions { display: flex; gap: 6px; margin-left: 10px; }
+    .action-btn {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 1.5px solid var(--btn-border); background: var(--btn-bg);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.18s, box-shadow 0.18s, color 0.18s, border-color 0.18s;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+      outline: none; -webkit-tap-highlight-color: transparent;
+    }
+    .action-btn svg { width: 20px; height: 20px; pointer-events: none; }
+    .sun-btn  { color: rgb(255,136,0); }
+    .moon-btn { color: rgb(160,80,255); }
+    .sun-btn.active {
+      background: rgba(255,136,0,0.16); border-color: rgba(255,136,0,0.55);
+      box-shadow: 0 0 0 3px rgba(255,136,0,0.13), 0 0 18px rgba(255,136,0,0.40),
+                  0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+    }
+    .moon-btn.active {
+      background: rgba(160,80,255,0.16); border-color: rgba(160,80,255,0.55);
+      box-shadow: 0 0 0 3px rgba(160,80,255,0.13), 0 0 18px rgba(160,80,255,0.44),
+                  0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+    }
+
+    /* ── Home link ────────────────────────────────────────────────── */
+    .home-link {
+      position: fixed; top: 20px; left: 20px;
+      font-size: 8px; font-weight: 600;
+      letter-spacing: 0.28em; text-transform: uppercase;
+      color: var(--text-muted); text-decoration: none;
+      opacity: 0.48; transition: opacity 0.2s, color 0.3s;
+      z-index: 50; -webkit-tap-highlight-color: transparent;
+    }
+    .home-link:hover { opacity: 1; }
+
+    body.dark .settings-bar { opacity: 0.42; transition: opacity 0.25s; }
+    body.dark .settings-bar:hover,
+    body.dark .settings-bar.lit { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <a class="home-link" href="../index.html">&larr; Home</a>
+
+  <div class="app-name">Stream</div>
+
+  <div class="info">
+    <div class="status-text" id="statusText">ready</div>
+    <div class="track-info" id="trackInfo"></div>
+  </div>
+
+  <div class="stage">
+    <canvas id="wheelCanvas"></canvas>
+    <div class="controls">
+
+      <button class="btn" id="btnRewind" disabled title="Rewind">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M11 18V6l-8.5 6 8.5 6zm.5-6 8.5 6V6l-8.5 6z"/>
+        </svg>
+        <span class="btn-label">Rewind</span>
+      </button>
+
+      <button class="btn" id="btnFforward" disabled title="Fast Forward">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/>
+        </svg>
+        <span class="btn-label">Forward</span>
+      </button>
+
+      <button class="btn" id="btnPlay" title="Play">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <span class="btn-label">Play</span>
+      </button>
+
+      <button class="btn" id="btnPause" disabled title="Pause">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        <span class="btn-label">Pause</span>
+      </button>
+
+      <button class="btn" id="btnStop" disabled title="Stop">
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+        <span class="btn-label">Stop</span>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- ── Settings bar ─────────────────────────────────────────────── -->
+  <div class="settings-bar">
+    <span class="settings-label">Display Mode</span>
+    <div class="settings-actions" id="themeActions">
+      <button class="action-btn sun-btn" id="btnSun" title="Light mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4.2" fill="currentColor" stroke="none"/>
+          <line x1="12" y1="2"    x2="12" y2="5.2"/>
+          <line x1="12" y1="18.8" x2="12" y2="22"/>
+          <line x1="2"  y1="12"   x2="5.2" y2="12"/>
+          <line x1="18.8" y1="12" x2="22"  y2="12"/>
+          <line x1="5.05" y1="5.05"  x2="7.4"   y2="7.4"/>
+          <line x1="16.6" y1="16.6"  x2="18.95"  y2="18.95"/>
+          <line x1="5.05" y1="18.95" x2="7.4"   y2="16.6"/>
+          <line x1="16.6" y1="7.4"   x2="18.95"  y2="5.05"/>
+        </svg>
+      </button>
+      <button class="action-btn moon-btn" id="btnMoon" title="Dark mode">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Playlist from /radio folder (alphabetical order) ─────────────────
+  const TRACKS = [
+    { file: '../radio/10001 The Princess Periezade, The Talking Bird, The Golden Water and The Singing Tree.m4a',
+      name: 'The Princess Periezade' },
+    { file: '../radio/10002 The Fisherman and the Genie.m4a',
+      name: 'The Fisherman and the Genie' },
+    { file: '../radio/10003 The Young King of the Black Isles.m4a',
+      name: 'The Young King of the Black Isles' },
+    { file: '../radio/10004 The Magic Horse.m4a',
+      name: 'The Magic Horse' },
+    { file: '../radio/10005 The City of Brass.m4a',
+      name: 'The City of Brass' },
+    { file: '../radio/10006 Codadad and His Brothers.m4a',
+      name: 'Codadad and His Brothers' },
+    { file: '../radio/10007 Prince Ahmed and the Fairy Periebanou.m4a',
+      name: 'Prince Ahmed and the Fairy Periebanou' },
+    { file: '../radio/10008 Aladdin.mp3',
+      name: 'Aladdin' },
+    { file: '../radio/10009 Ali Baba.mp3',
+      name: 'Ali Baba' },
+    { file: '../radio/10010 Sinbad the Sailor.mp3',
+      name: 'Sinbad the Sailor' },
+    { file: '../radio/10011 Gulnare of the Sea.mp3',
+      name: 'Gulnare of the Sea' },
+    { file: '../radio/10012 Prince Agib.mp3',
+      name: 'Prince Agib' },
+    { file: '../radio/10013 Hassan al Balsora.mp3',
+      name: 'Hassan al Balsora' },
+    { file: '../radio/10014 Camaralzaman and the Princess Badoura.mp3',
+      name: 'Camaralzaman and the Princess Badoura' },
+  ];
+
+  // Restore saved position
+  const saved = JSON.parse(localStorage.getItem('stream_pos') || 'null');
+  let trackIndex = saved ? Math.min(saved.track, TRACKS.length - 1) : 0;
+  let savedTime  = saved ? saved.time : 0;
+
+  let audio = new Audio();
+  let state = 'idle'; // idle | playing | paused | rewinding | forwarding
+
+  // Persist position every 2 seconds and on unload
+  function savePos() {
+    localStorage.setItem('stream_pos', JSON.stringify({
+      track: trackIndex,
+      time:  audio.currentTime || 0,
+    }));
+  }
+  setInterval(savePos, 2000);
+  window.addEventListener('beforeunload', savePos);
+
+  // ── Canvas setup ───────────────────────────────────────────────────────
+  const canvas = document.getElementById('wheelCanvas');
+  const ctx    = canvas.getContext('2d');
+  const SIZE   = canvas.parentElement.offsetWidth;
+  const dpr    = window.devicePixelRatio || 1;
+  canvas.width  = SIZE * dpr;
+  canvas.height = SIZE * dpr;
+  ctx.scale(dpr, dpr);
+
+  const CX      = SIZE / 2;
+  const CY      = SIZE / 2;
+  const WHEEL_R = Math.round(SIZE * 0.41);
+  const TRI_S   = Math.round(SIZE * 0.030);
+
+  // ── Theme ──────────────────────────────────────────────────────────────
+  let theme = 'light';
+
+  function accentRGBA(a) {
+    return theme === 'dark' ? `rgba(160,80,255,${a})` : `rgba(255,136,0,${a})`;
+  }
+  function ringColor() {
+    return theme === 'dark' ? 'rgba(100,102,125,0.55)' : 'rgba(172,174,183,0.48)';
+  }
+  function triIdle() {
+    return theme === 'dark' ? 'rgba(200,202,218,0.32)' : 'rgba(88,90,102,0.32)';
+  }
+
+  // ── Wheel state ────────────────────────────────────────────────────────
+  let wheelAngle = 0;
+  let lastTs     = 0;
+  const SPEED_CW  = 0.30;
+  const SPEED_CCW = 0.90;
+
+  // ── Scrub state ────────────────────────────────────────────────────────
+  let rewindMult   = 1;
+  let forwardMult  = 1;
+  let scrubStartX  = null;
+  let scrubActive  = false;
+  let ffScrubStartX = null;
+  let ffScrubActive = false;
+  const SCRUB_STEPS     = [0.5, 1, 1.5, 2];
+  const SCRUB_THRESHOLD = 15;
+  const SCRUB_ZONE      = 40;
+
+  function scrubMult(dx) {
+    const d = Math.max(0, -dx) - SCRUB_THRESHOLD;
+    if (d <= 0) return 0;
+    return SCRUB_STEPS[Math.min(SCRUB_STEPS.length - 1, Math.floor(d / SCRUB_ZONE))];
+  }
+
+  function ffScrubMult(dx) {
+    const d = Math.max(0, dx) - SCRUB_THRESHOLD;
+    if (d <= 0) return 0;
+    return SCRUB_STEPS[Math.min(SCRUB_STEPS.length - 1, Math.floor(d / SCRUB_ZONE))];
+  }
+
+  // ── Drawing ────────────────────────────────────────────────────────────
+  function drawWheel() {
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    const active = (state === 'playing' || state === 'rewinding' || state === 'forwarding');
+
+    // Atmospheric glow ring
+    const grd = ctx.createRadialGradient(CX, CY, WHEEL_R - 8, CX, CY, WHEEL_R + 28);
+    grd.addColorStop(0, active ? accentRGBA(0.13) : 'rgba(185,187,196,0.11)');
+    grd.addColorStop(1, active ? accentRGBA(0)    : 'rgba(185,187,196,0)');
+    ctx.beginPath();
+    ctx.arc(CX, CY, WHEEL_R + 28, 0, Math.PI * 2);
+    ctx.fillStyle = grd;
+    ctx.fill();
+
+    // Wheel ring
+    ctx.beginPath();
+    ctx.arc(CX, CY, WHEEL_R, 0, Math.PI * 2);
+    ctx.strokeStyle = active ? accentRGBA(0.50) : ringColor();
+    ctx.lineWidth   = active ? 1.8 : 1.5;
+    if (active) {
+      ctx.shadowBlur  = 10;
+      ctx.shadowColor = accentRGBA(0.45);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Three triangles orbiting the ring
+    ctx.save();
+    ctx.translate(CX, CY);
+    ctx.rotate(wheelAngle);
+
+    const tColor = active ? accentRGBA(0.88) : triIdle();
+    if (active) {
+      ctx.shadowBlur  = 7;
+      ctx.shadowColor = accentRGBA(0.55);
+    }
+
+    for (let i = 0; i < 3; i++) {
+      ctx.save();
+      ctx.rotate((i * 2 * Math.PI) / 3);
+      ctx.beginPath();
+      ctx.moveTo(WHEEL_R,          0);
+      ctx.lineTo(WHEEL_R - TRI_S, -TRI_S);
+      ctx.lineTo(WHEEL_R - TRI_S,  TRI_S);
+      ctx.closePath();
+      ctx.fillStyle = tColor;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  // ── Animation loop ─────────────────────────────────────────────────────
+  function loop(ts) {
+    requestAnimationFrame(loop);
+    const dt = lastTs ? (ts - lastTs) / 1000 : 0;
+    lastTs = ts;
+    if (state === 'playing')   wheelAngle += SPEED_CW * dt;
+    if (state === 'rewinding') {
+      wheelAngle -= SPEED_CCW * rewindMult * dt;
+      audio.currentTime = Math.max(0, audio.currentTime - dt * rewindMult * 3);
+    }
+    if (state === 'forwarding') {
+      wheelAngle += SPEED_CCW * forwardMult * dt;
+      if (audio.duration && isFinite(audio.duration)) {
+        audio.currentTime = Math.min(audio.duration, audio.currentTime + dt * forwardMult * 3);
+      }
+    }
+    drawWheel();
+  }
+
+  // ── Elements ───────────────────────────────────────────────────────────
+  const btnRewind  = document.getElementById('btnRewind');
+  const btnFforward = document.getElementById('btnFforward');
+  const btnPlay    = document.getElementById('btnPlay');
+  const btnPause   = document.getElementById('btnPause');
+  const btnStop    = document.getElementById('btnStop');
+  const statusEl  = document.getElementById('statusText');
+  const trackEl   = document.getElementById('trackInfo');
+
+  // ── Track display ──────────────────────────────────────────────────────
+  function showTrack() {
+    if (TRACKS.length > 0) {
+      trackEl.textContent = `${trackIndex + 1}/${TRACKS.length}  ${TRACKS[trackIndex].name}`;
+    }
+  }
+
+  // ── UI sync ────────────────────────────────────────────────────────────
+  function syncUI() {
+    [btnRewind, btnFforward, btnPlay, btnPause, btnStop].forEach(b => b.classList.remove('active'));
+    switch (state) {
+      case 'idle':
+        btnRewind.disabled  = true;  btnFforward.disabled = true;
+        btnPlay.disabled    = false;
+        btnPause.disabled   = true;  btnStop.disabled     = true;
+        statusEl.textContent = 'ready';
+        trackEl.textContent  = '';
+        break;
+      case 'playing':
+        btnRewind.disabled  = false; btnFforward.disabled = false;
+        btnPlay.disabled    = true;
+        btnPause.disabled   = false; btnStop.disabled     = false;
+        btnPlay.classList.add('active');
+        statusEl.textContent = 'playing';
+        showTrack();
+        break;
+      case 'paused':
+        btnRewind.disabled  = false; btnFforward.disabled = false;
+        btnPlay.disabled    = false;
+        btnPause.disabled   = false; btnStop.disabled     = false;
+        btnPause.classList.add('active');
+        statusEl.textContent = 'paused';
+        showTrack();
+        break;
+      case 'rewinding':
+        btnRewind.disabled  = true;  btnFforward.disabled = true;
+        btnPlay.disabled    = false;
+        btnPause.disabled   = true;  btnStop.disabled     = false;
+        btnRewind.classList.add('active');
+        statusEl.textContent = 'rewinding';
+        showTrack();
+        break;
+      case 'forwarding':
+        btnRewind.disabled  = true;  btnFforward.disabled = true;
+        btnPlay.disabled    = false;
+        btnPause.disabled   = true;  btnStop.disabled     = false;
+        btnFforward.classList.add('active');
+        statusEl.textContent = 'forwarding';
+        showTrack();
+        break;
+    }
+  }
+
+  // ── Audio playback ─────────────────────────────────────────────────────
+  function loadTrack(idx, resumeTime) {
+    trackIndex = idx % TRACKS.length;
+    audio.src = TRACKS[trackIndex].file;
+    if (resumeTime > 0) {
+      audio.addEventListener('loadedmetadata', function seek() {
+        audio.removeEventListener('loadedmetadata', seek);
+        audio.currentTime = Math.min(resumeTime, audio.duration || resumeTime);
+      });
+    }
+    showTrack();
+  }
+
+  audio.addEventListener('ended', () => {
+    if (state === 'playing') {
+      if (trackIndex < TRACKS.length - 1) {
+        loadTrack(trackIndex + 1);
+        audio.play().catch(() => {});
+      } else {
+        // Finished all tracks
+        state = 'idle'; syncUI();
+      }
+    }
+  });
+
+  audio.addEventListener('error', () => {
+    // Skip broken tracks
+    if (state === 'playing' && trackIndex < TRACKS.length - 1) {
+      loadTrack(trackIndex + 1);
+      audio.play().catch(() => {});
+    } else {
+      state = 'idle'; syncUI();
+    }
+  });
+
+  // ── Button handlers ────────────────────────────────────────────────────
+  btnPlay.addEventListener('click', async () => {
+    if (state === 'idle' || state === 'paused' || state === 'rewinding' || state === 'forwarding') {
+      state = 'playing'; syncUI();
+      if (!audio.src || audio.src === window.location.href || audio.ended) {
+        loadTrack(trackIndex, savedTime);
+        savedTime = 0; // only use saved time on first play
+      }
+      try { await audio.play(); } catch (err) {
+        console.warn('Playback failed', err);
+        // Try next track
+        if (trackIndex < TRACKS.length - 1) {
+          loadTrack(trackIndex + 1);
+          try { await audio.play(); } catch { /* give up */ }
+        }
+      }
+    }
+  });
+
+  btnPause.addEventListener('click', () => {
+    if (state === 'playing') {
+      audio.pause();
+      state = 'paused'; syncUI();
+    }
+  });
+
+  btnStop.addEventListener('click', () => {
+    if (state !== 'idle') {
+      audio.pause();
+      audio.currentTime = 0;
+      state = 'idle'; syncUI();
+    }
+  });
+
+  // Rewind: tap = 5s back, drag-left = scrub
+  btnRewind.addEventListener('pointerdown', e => {
+    if (btnRewind.disabled) return;
+    scrubStartX = e.clientX;
+    scrubActive = false;
+    btnRewind.setPointerCapture(e.pointerId);
+  });
+
+  btnRewind.addEventListener('pointermove', e => {
+    if (scrubStartX === null) return;
+    const mult = scrubMult(e.clientX - scrubStartX);
+    if (mult > 0) {
+      scrubActive = true;
+      rewindMult  = mult;
+      if (state === 'playing' || state === 'paused' || state === 'rewinding') {
+        if (state === 'playing') audio.pause();
+        state = 'rewinding';
+        syncUI();
+        statusEl.textContent = `\u2190 ${rewindMult}\u00d7`;
+      }
+    }
+  });
+
+  btnRewind.addEventListener('pointerup', () => {
+    if (scrubStartX === null) return;
+    const wasScrub = scrubActive;
+    scrubStartX = null;
+    scrubActive = false;
+    rewindMult  = 1;
+    if (wasScrub) {
+      if (state === 'rewinding') { state = 'paused'; syncUI(); }
+    } else {
+      if (state === 'playing' || state === 'paused') {
+        audio.pause();
+        audio.currentTime = Math.max(0, audio.currentTime - 5);
+        state = 'paused'; syncUI();
+      }
+    }
+  });
+
+  // Fast-forward: tap = 5s ahead, drag-right = scrub forward
+  btnFforward.addEventListener('pointerdown', e => {
+    if (btnFforward.disabled) return;
+    ffScrubStartX = e.clientX;
+    ffScrubActive = false;
+    btnFforward.setPointerCapture(e.pointerId);
+  });
+
+  btnFforward.addEventListener('pointermove', e => {
+    if (ffScrubStartX === null) return;
+    const mult = ffScrubMult(e.clientX - ffScrubStartX);
+    if (mult > 0) {
+      ffScrubActive = true;
+      forwardMult   = mult;
+      if (state === 'playing' || state === 'paused' || state === 'forwarding') {
+        if (state === 'playing') audio.pause();
+        state = 'forwarding';
+        syncUI();
+        statusEl.textContent = `${forwardMult}\u00d7 \u2192`;
+      }
+    }
+  });
+
+  btnFforward.addEventListener('pointerup', () => {
+    if (ffScrubStartX === null) return;
+    const wasScrub = ffScrubActive;
+    ffScrubStartX = null;
+    ffScrubActive = false;
+    forwardMult   = 1;
+    if (wasScrub) {
+      if (state === 'forwarding') { state = 'paused'; syncUI(); }
+    } else {
+      // Tap: skip forward 5 seconds
+      if (state === 'playing' || state === 'paused') {
+        audio.pause();
+        if (audio.duration && isFinite(audio.duration)) {
+          audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
+        }
+        state = 'paused'; syncUI();
+      }
+    }
+  });
+
+  // ── Theme controls ─────────────────────────────────────────────────────
+  const btnSun  = document.getElementById('btnSun');
+  const btnMoon = document.getElementById('btnMoon');
+
+  function setTheme(t) {
+    theme = t;
+    localStorage.setItem('theme', t);
+    document.body.classList.toggle('dark', t === 'dark');
+    btnSun.classList.toggle('active',  t === 'light');
+    btnMoon.classList.toggle('active', t === 'dark');
+  }
+
+  btnSun.addEventListener('click',  () => setTheme('light'));
+  btnMoon.addEventListener('click', () => setTheme('dark'));
+  setTheme(localStorage.getItem('theme') || 'light');
+
+  // ── Settings bar touch-brighten (dark mode) ────────────────────────────
+  const bar = document.querySelector('.settings-bar');
+  let litTimer;
+  bar.addEventListener('touchstart', () => {
+    clearTimeout(litTimer);
+    bar.classList.add('lit');
+  }, { passive: true });
+  bar.addEventListener('touchend', () => {
+    litTimer = setTimeout(() => bar.classList.remove('lit'), 1200);
+  }, { passive: true });
+
+  // ── Show saved position on load ──────────────────────────────────────
+  if (saved && TRACKS.length > 0) {
+    showTrack();
+    const mins = Math.floor(savedTime / 60);
+    const secs = Math.floor(savedTime % 60);
+    statusEl.textContent = `paused at ${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  }
+
+  // ── Start animation loop ───────────────────────────────────────────────
+  requestAnimationFrame(loop);
+
+}());
+</script>
+</body>
+</html>

@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Elevator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Theme tokens ───────────────────────────────────────────────────── */
+    :root {
+      --bg-a:          #eceef2;
+      --bg-b:          #d8dae1;
+      --hex-bg:        rgba(120,60,200,0.30);
+      --hex-side:      rgba(100,40,180,0.40);
+      --hex-bottom:    rgba(80,30,160,0.25);
+      --circle-border: rgba(88,90,102,0.22);
+      --label-color:   rgba(88,90,102,0.80);
+      --title-color:   rgba(88,90,102,0.38);
+      --accent:        rgb(255,136,0);
+      --accent-glow:   rgba(255,136,0,0.38);
+      --dot-color:     rgba(88,90,102,0.30);
+      --dot-active:    rgba(255,136,0,0.65);
+      --arrow-color:   rgba(88,90,102,0.40);
+      --arrow-hover:   rgba(88,90,102,0.80);
+      --btn-bg:        rgba(158,161,170,0.26);
+      --btn-border:    rgba(255,255,255,0.55);
+      --btn-inset:     rgba(255,255,255,0.45);
+      --text-muted:    #b0b3bc;
+    }
+
+    body.dark {
+      --bg-a:          #13141a;
+      --bg-b:          #0f1014;
+      --hex-bg:        rgba(42,44,58,0.55);
+      --hex-side:      rgba(60,62,82,0.50);
+      --hex-bottom:    rgba(30,32,48,0.60);
+      --circle-border: rgba(255,255,255,0.18);
+      --label-color:   rgba(255,255,255,0.72);
+      --title-color:   rgba(255,255,255,0.28);
+      --accent:        rgb(160,80,255);
+      --accent-glow:   rgba(160,80,255,0.44);
+      --dot-color:     rgba(200,202,218,0.22);
+      --dot-active:    rgba(160,80,255,0.65);
+      --arrow-color:   rgba(200,202,218,0.35);
+      --arrow-hover:   rgba(200,202,218,0.80);
+      --btn-bg:        rgba(42,44,58,0.55);
+      --btn-border:    rgba(255,255,255,0.10);
+      --btn-inset:     rgba(255,255,255,0.05);
+      --text-muted:    rgba(140,142,158,0.75);
+    }
+
+    html, body {
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(150deg, var(--bg-a) 0%, var(--bg-b) 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      user-select: none; -webkit-user-select: none;
+      transition: background 0.3s;
+    }
+
+    /* ── Scene container ───────────────────────────────────────────────── */
+    .scene {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Rain canvases above and below ───────────────────────────────── */
+    .rain-canvas {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .rain-top    { top: 0; }
+    .rain-bottom { bottom: 0; }
+
+    /* ── Arrow buttons ─────────────────────────────────────────────────── */
+    .arrow-btn {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1.5px solid var(--btn-border);
+      background: var(--btn-bg);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      color: var(--arrow-color);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.18s, background 0.18s, box-shadow 0.18s, border-color 0.18s;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+      z-index: 10;
+    }
+
+    .arrow-btn:hover {
+      color: var(--arrow-hover);
+      filter: brightness(1.12);
+    }
+
+    .arrow-btn:active {
+      color: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow), 0 2px 14px rgba(0,0,0,0.09);
+    }
+
+    .arrow-btn svg {
+      width: 10px;
+      height: 10px;
+      pointer-events: none;
+    }
+
+    .arrow-up   { top: calc(50% - 150px); }
+    .arrow-down { bottom: calc(50% - 150px); }
+
+    /* ── 3D Hexagon ────────────────────────────────────────────────────── */
+    .hex-3d-wrap {
+      perspective: 800px;
+      width: 180px;
+      height: 208px;
+    }
+
+    .hex-3d {
+      width: 180px;
+      height: 208px;
+      position: relative;
+      transform-style: preserve-3d;
+      transform: rotateX(80deg) rotateZ(30deg);
+      transition: transform 0.6s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* Top face — the visible hexagon */
+    .hex-face-top {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      background: var(--hex-bg);
+      backface-visibility: hidden;
+    }
+
+    /* Bottom face */
+    .hex-face-bottom {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      background: var(--hex-bottom);
+      transform: translateZ(-24px);
+      backface-visibility: hidden;
+    }
+
+    /* ── Card content on top face ──────────────────────────────────────── */
+    .card-inner {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 11px;
+      z-index: 2;
+    }
+
+    .card-circle {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      border: 1.5px solid var(--circle-border);
+      flex-shrink: 0;
+      transition: border-color 0.3s;
+    }
+
+    .card-label {
+      display: flex;
+      justify-content: space-evenly;
+      align-items: center;
+      width: 76%;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      color: var(--label-color);
+      transition: color 0.3s;
+    }
+
+    .card-label span { display: block; }
+
+  </style>
+</head>
+<body>
+
+  <div class="scene">
+
+    <!-- ── Top rain canvas ─────────────────────────────────────────────── -->
+    <canvas class="rain-canvas rain-top" id="rainTop"></canvas>
+
+    <!-- ── Up arrow ────────────────────────────────────────────────────── -->
+    <button class="arrow-btn arrow-up" id="arrowUp" title="Move up">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 4l-8 8h5v8h6v-8h5z"/>
+      </svg>
+    </button>
+
+    <!-- ── 3D Hexagon ──────────────────────────────────────────────────── -->
+    <div class="hex-3d-wrap">
+      <div class="hex-3d" id="hex3d">
+        <div class="hex-face-top">
+          <div class="card-inner">
+            <div class="card-circle"></div>
+          </div>
+        </div>
+        <div class="hex-face-bottom"></div>
+      </div>
+    </div>
+
+    <!-- ── Down arrow ──────────────────────────────────────────────────── -->
+    <button class="arrow-btn arrow-down" id="arrowDown" title="Move down">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 20l8-8h-5V4H9v8H4z"/>
+      </svg>
+    </button>
+
+    <!-- ── Bottom rain canvas ──────────────────────────────────────────── -->
+    <canvas class="rain-canvas rain-bottom" id="rainBottom"></canvas>
+
+  </div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Theme ─────────────────────────────────────────────────────────────
+  const isDark = () => document.body.classList.contains('dark');
+
+  function setTheme(t) {
+    document.body.classList.toggle('dark', t === 'dark');
+  }
+  setTheme(localStorage.getItem('theme') || 'light');
+  window.addEventListener('storage', e => {
+    if (e.key === 'theme') setTheme(e.newValue || 'light');
+  });
+
+  // ── Matrix rain canvases ────────────────────────────────────────────
+  const cTop    = document.getElementById('rainTop');
+  const cBot    = document.getElementById('rainBottom');
+  const ctxTop  = cTop.getContext('2d');
+  const ctxBot  = cBot.getContext('2d');
+
+  const COL_GAP   = 20;    // px between columns
+  const DOT_R     = 2;     // dot radius
+  const DOT_GAP   = 16;    // spacing between dots in a column
+  const RAIN_W    = 220;   // canvas logical width
+  const NUM_COLS  = Math.floor(RAIN_W / COL_GAP);
+
+  // Each column: array of dot y-positions (0..canvasH), speed, brightness
+  let columnsTop = [];
+  let columnsBot = [];
+  let animId     = null;
+  let direction  = 0;       // -1 = up, +1 = down, 0 = idle
+  let fadeOut    = 0;        // 0..1, controls overall brightness decay
+
+  function sizeCanvases() {
+    const dpr = window.devicePixelRatio || 1;
+    const vh  = window.innerHeight;
+    const halfH = Math.floor(vh / 2 - 130);
+
+    cTop.width  = RAIN_W * dpr;
+    cTop.height = halfH * dpr;
+    cTop.style.width  = RAIN_W + 'px';
+    cTop.style.height = halfH + 'px';
+
+    cBot.width  = RAIN_W * dpr;
+    cBot.height = halfH * dpr;
+    cBot.style.width  = RAIN_W + 'px';
+    cBot.style.height = halfH + 'px';
+
+    ctxTop.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctxBot.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function initColumns(h) {
+    const cols = [];
+    for (let i = 0; i < NUM_COLS; i++) {
+      const dots = [];
+      const numDots = Math.ceil(h / DOT_GAP) + 4;
+      const startY  = Math.random() * DOT_GAP;
+      for (let d = 0; d < numDots; d++) {
+        dots.push(startY + d * DOT_GAP);
+      }
+      cols.push({
+        x: 10 + i * COL_GAP,
+        dots: dots,
+        speed: 1.5 + Math.random() * 3.5,
+        brightness: 0.15 + Math.random() * 0.25,
+        headIdx: Math.floor(Math.random() * numDots),
+      });
+    }
+    return cols;
+  }
+
+  function resetRain() {
+    const hTop = parseFloat(cTop.style.height);
+    const hBot = parseFloat(cBot.style.height);
+    columnsTop = initColumns(hTop);
+    columnsBot = initColumns(hBot);
+  }
+
+  sizeCanvases();
+  resetRain();
+  window.addEventListener('resize', () => { sizeCanvases(); resetRain(); });
+
+  // Draw static dots (idle state)
+  function drawStatic() {
+    const dark = isDark();
+    const baseColor = dark ? '200,202,218' : '88,90,102';
+
+    [{ ctx: ctxTop, cols: columnsTop, h: parseFloat(cTop.style.height) },
+     { ctx: ctxBot, cols: columnsBot, h: parseFloat(cBot.style.height) }].forEach(({ ctx, cols, h }) => {
+      ctx.clearRect(0, 0, RAIN_W, h);
+      cols.forEach(col => {
+        col.dots.forEach(y => {
+          if (y >= 0 && y <= h) {
+            ctx.beginPath();
+            ctx.arc(col.x, y, DOT_R, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${baseColor}, 0.20)`;
+            ctx.fill();
+          }
+        });
+      });
+    });
+  }
+
+  drawStatic();
+
+  // ── Animation loop ──────────────────────────────────────────────────
+  let startTime = 0;
+  const ANIM_DURATION = 2000;
+
+  function animate(now) {
+    const elapsed = now - startTime;
+    const t = Math.min(elapsed / ANIM_DURATION, 1);
+
+    // Ease: ramp up fast, sustain, then fade
+    let intensity;
+    if (t < 0.1) intensity = t / 0.1;
+    else if (t < 0.6) intensity = 1;
+    else intensity = 1 - ((t - 0.6) / 0.4);
+
+    const dark = isDark();
+    const baseR = dark ? 160 : 88;
+    const baseG = dark ? 80  : 90;
+    const baseB = dark ? 255 : 102;
+    const accentR = dark ? 160 : 255;
+    const accentG = dark ? 80  : 136;
+    const accentB = dark ? 255 : 0;
+
+    [{ ctx: ctxTop, cols: columnsTop, h: parseFloat(cTop.style.height) },
+     { ctx: ctxBot, cols: columnsBot, h: parseFloat(cBot.style.height) }].forEach(({ ctx, cols, h }) => {
+      ctx.clearRect(0, 0, RAIN_W, h);
+
+      cols.forEach(col => {
+        // Move dots
+        const move = col.speed * direction * 3 * intensity;
+        for (let i = 0; i < col.dots.length; i++) {
+          col.dots[i] += move;
+          // Wrap around
+          if (direction > 0 && col.dots[i] > h + DOT_GAP) {
+            col.dots[i] -= (col.dots.length * DOT_GAP);
+          } else if (direction < 0 && col.dots[i] < -DOT_GAP) {
+            col.dots[i] += (col.dots.length * DOT_GAP);
+          }
+        }
+
+        // Draw dots with trailing brightness
+        col.dots.forEach((y, di) => {
+          if (y < -DOT_R || y > h + DOT_R) return;
+
+          // Head dot is brightest, trail fades
+          const distFromHead = Math.abs(di - col.headIdx) % col.dots.length;
+          const trail = Math.max(0, 1 - distFromHead / 6);
+          const alpha = 0.12 + trail * 0.75 * intensity;
+
+          const r = Math.round(baseR + (accentR - baseR) * trail * intensity);
+          const g = Math.round(baseG + (accentG - baseG) * trail * intensity);
+          const b = Math.round(baseB + (accentB - baseB) * trail * intensity);
+
+          ctx.beginPath();
+          ctx.arc(col.x, y, DOT_R + trail * intensity * 1, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+          ctx.fill();
+        });
+
+        // Move head index to create cascading effect
+        if (Math.random() < 0.02) {
+          col.headIdx = (col.headIdx + (direction > 0 ? 1 : -1) + col.dots.length) % col.dots.length;
+        }
+      });
+    });
+
+    if (t < 1) {
+      animId = requestAnimationFrame(animate);
+    } else {
+      animId = null;
+      direction = 0;
+      drawStatic();
+    }
+  }
+
+  function startRain(dir) {
+    direction = dir;
+    startTime = performance.now();
+    if (animId) cancelAnimationFrame(animId);
+    animId = requestAnimationFrame(animate);
+  }
+
+  // ── Arrow handlers ────────────────────────────────────────────────────
+  const arrowUp   = document.getElementById('arrowUp');
+  const arrowDown = document.getElementById('arrowDown');
+
+  arrowUp.addEventListener('click',   () => startRain(-1));
+  arrowDown.addEventListener('click', () => startRain(1));
+
+
+})();
+</script>
+</body>
+</html>

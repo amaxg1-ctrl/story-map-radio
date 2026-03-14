@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ELOCUTE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fugaz+One&display=swap">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Theme tokens ──────────────────────────────────────────────────── */
+    :root {
+      --bg-a: #eceef2; --bg-b: #d8dae1;
+      --accent:        rgb(255,136,0);
+      --accent-rgb:    255,136,0;
+      --accent-glow:   rgba(255,136,0,0.38);
+      --accent-ring:   rgba(255,136,0,0.13);
+      --accent-bg:     rgba(255,136,0,0.16);
+      --accent-border: rgba(255,136,0,0.55);
+      --text:          rgba(88,90,102,0.82);
+      --text-muted:    #b0b3bc;
+      --status:        #c4c6ce;
+      --btn-bg:        rgba(158,161,170,0.26);
+      --btn-border:    rgba(255,255,255,0.55);
+      --btn-inset:     rgba(255,255,255,0.45);
+      --idle-ring:     rgba(172,174,183,0.48);
+      --idle-glow:     rgba(185,187,196,0.18);
+    }
+
+    body.dark {
+      --bg-a: #13141a; --bg-b: #0f1014;
+      --accent:        rgb(160,80,255);
+      --accent-rgb:    160,80,255;
+      --accent-glow:   rgba(160,80,255,0.44);
+      --accent-ring:   rgba(160,80,255,0.15);
+      --accent-bg:     rgba(160,80,255,0.18);
+      --accent-border: rgba(160,80,255,0.58);
+      --text:          rgba(200,202,218,0.85);
+      --text-muted:    rgba(140,142,158,0.75);
+      --status:        rgba(120,122,138,0.75);
+      --btn-bg:        rgba(42,44,58,0.55);
+      --btn-border:    rgba(255,255,255,0.10);
+      --btn-inset:     rgba(255,255,255,0.05);
+      --idle-ring:     rgba(100,102,125,0.55);
+      --idle-glow:     rgba(80,82,110,0.22);
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-start;
+      background: linear-gradient(150deg, var(--bg-a) 0%, var(--bg-b) 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      user-select: none; -webkit-user-select: none;
+      transition: background 0.3s;
+      overflow: hidden;
+    }
+
+    /* ── Layout: two halves with title between ─────────────────────────── */
+    .half {
+      position: relative;
+      width: 100vw;
+      height: 50vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .half-top  { align-items: flex-end; padding-bottom: 28px; }
+    .half-bot  { align-items: flex-start; padding-top: 28px; }
+
+    .circle-wrap {
+      position: relative;
+      width: min(400px, 54vmin); height: min(400px, 54vmin);
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .circle-wrap canvas {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    }
+
+    /* ── Title between circles ─────────────────────────────────────────── */
+    .app-title {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 50;
+      font-size: 11px; font-weight: 400;
+      letter-spacing: 0.5em; text-transform: uppercase;
+      color: var(--text-muted);
+      transition: color 0.3s;
+    }
+
+    /* ── Buttons — 2x original (116px) ─────────────────────────────────── */
+    .controls {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; gap: 16px;
+    }
+
+    .btn {
+      position: relative; width: 58px; height: 58px; border-radius: 50%;
+      border: 1.5px solid var(--btn-border);
+      background: var(--btn-bg);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      color: var(--text); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.18s, box-shadow 0.18s, color 0.18s, border-color 0.18s;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+      outline: none; -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn:hover:not(:disabled) { filter: brightness(1.12); }
+
+    .btn.active {
+      background: var(--accent-bg);
+      border-color: var(--accent-border);
+      color: var(--accent);
+      box-shadow:
+        0 0 0 3px var(--accent-ring),
+        0 0 22px var(--accent-glow),
+        0 2px 14px rgba(0,0,0,0.09),
+        inset 0 1px 0 var(--btn-inset);
+    }
+
+    .btn:disabled { opacity: 0.28; cursor: default; }
+    .btn svg { width: 21px; height: 21px; flex-shrink: 0; pointer-events: none; }
+
+    .btn-label {
+      position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+      font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--text-muted); white-space: nowrap; pointer-events: none;
+    }
+
+    /* ── Status text ───────────────────────────────────────────────────── */
+    .status-text {
+      position: fixed;
+      top: calc(50% + 16px); left: 50%;
+      transform: translateX(-50%);
+      font-size: 9.5px; letter-spacing: 0.28em; text-transform: uppercase;
+      color: var(--status); transition: color 0.3s;
+      z-index: 51;
+    }
+
+    /* ── Settings bar ──────────────────────────────────────────────────── */
+    .settings-bar {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 0;
+      background: var(--btn-bg);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--btn-border); border-radius: 40px;
+      padding: 5px 6px 5px 10px; z-index: 200;
+      box-shadow: 0 4px 28px rgba(0,0,0,0.12);
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    .settings-arrows {
+      display: flex; flex-direction: column; align-items: center; gap: 1px;
+      margin-right: 10px;
+    }
+
+    .arrow-btn {
+      width: 20px; height: 19px; border-radius: 4px; border: none;
+      background: transparent; color: var(--text-muted);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 0; transition: color 0.18s; -webkit-tap-highlight-color: transparent;
+    }
+    .arrow-btn:hover { color: var(--text); }
+    .arrow-btn svg { width: 9px; height: 9px; pointer-events: none; }
+
+    .settings-label {
+      font-size: 9.5px; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--text-muted); min-width: 108px; text-align: center;
+      transition: color 0.3s;
+    }
+
+    .settings-actions { display: flex; gap: 6px; margin-left: 10px; }
+
+    .action-btn {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 1.5px solid var(--btn-border);
+      background: var(--btn-bg);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.18s, box-shadow 0.18s, color 0.18s, border-color 0.18s;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+      outline: none; -webkit-tap-highlight-color: transparent;
+    }
+    .action-btn svg { width: 20px; height: 20px; pointer-events: none; }
+
+    .sun-btn  { color: rgb(255,136,0); }
+    .moon-btn { color: rgb(160,80,255); }
+
+    .sun-btn.active {
+      background: rgba(255,136,0,0.16); border-color: rgba(255,136,0,0.55);
+      box-shadow: 0 0 0 3px rgba(255,136,0,0.13), 0 0 18px rgba(255,136,0,0.40),
+                  0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+    }
+    .moon-btn.active {
+      background: rgba(160,80,255,0.16); border-color: rgba(160,80,255,0.55);
+      box-shadow: 0 0 0 3px rgba(160,80,255,0.13), 0 0 18px rgba(160,80,255,0.44),
+                  0 2px 14px rgba(0,0,0,0.09), inset 0 1px 0 var(--btn-inset);
+    }
+
+    #btnGo {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.14em;
+      color: rgba(160,80,255,0.62);
+      border-color: rgba(160,80,255,0.28);
+      background: rgba(160,80,255,0.08);
+    }
+    #btnStay {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.14em;
+      color: rgba(255,136,0,0.62);
+      border-color: rgba(255,136,0,0.28);
+      background: rgba(255,136,0,0.08);
+    }
+
+    /* ── Save toast ──────────────────────────────────────────────────── */
+    #saveToast {
+      position: fixed;
+      bottom: 92px;
+      left: 50%; transform: translateX(-50%);
+      font-size: 9px; font-weight: 600;
+      letter-spacing: 0.28em; text-transform: uppercase;
+      color: var(--accent);
+      background: var(--btn-bg);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--accent-border);
+      border-radius: 40px;
+      padding: 7px 18px;
+      box-shadow: 0 0 18px var(--accent-glow), 0 2px 10px rgba(0,0,0,0.10);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+      white-space: normal;
+      max-width: 80vw;
+      text-align: center;
+      z-index: 190;
+    }
+    #saveToast.visible { opacity: 1; }
+
+    /* ── Status icons ──────────────────────────────────────────────────── */
+    .status-icons {
+      position: fixed; top: 16px; right: 16px;
+      display: flex; align-items: center; gap: 10px; z-index: 300;
+    }
+    .si {
+      position: relative; width: 20px; height: 20px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); opacity: 0.30;
+      transition: opacity 0.2s, color 0.2s;
+    }
+    .si.si-on { color: var(--accent); opacity: 0.48; }
+    .si svg { pointer-events: none; }
+    .si > svg:not(.si-slash) { width: 100%; height: 100%; flex-shrink: 0; }
+    .si-slash {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: none; color: var(--text-muted);
+    }
+    .si.si-off .si-slash { display: block; }
+    #siHeadphones { cursor: pointer; }
+    #siLocation { cursor: pointer; }
+    .si-hp-wrap  { position: relative; }
+    .si-mic-wrap { position: relative; }
+    .si-mic-btn {
+      background: none; border: none; padding: 0;
+      cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent;
+    }
+    .si-mic-btn:hover { opacity: 0.65 !important; }
+    .mic-popup {
+      display: none;
+      position: absolute; top: calc(100% + 6px); right: 0;
+      min-width: 160px;
+      background: var(--btn-bg);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--btn-border);
+      border-radius: 12px; padding: 5px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.14); z-index: 400;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .mic-popup-item {
+      padding: 7px 10px;
+      font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--text); border-radius: 8px;
+      cursor: pointer; transition: background 0.15s; white-space: nowrap;
+    }
+    .mic-popup-item:hover { background: var(--accent-bg); color: var(--accent); }
+    .mic-popup-item.si-active { color: var(--accent); font-weight: 700; }
+
+    /* ── Dark mode dim ──────────────────────────────────────────────────── */
+    body.dark .settings-bar { opacity: 0.42; transition: opacity 0.25s; }
+    body.dark .settings-bar:hover,
+    body.dark .settings-bar.lit { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Top half: Speak circle with Arm + Play ──────────────────────── -->
+  <div class="half half-top">
+    <div class="circle-wrap" id="voiceWrap">
+      <canvas id="voiceCanvas"></canvas>
+      <div class="controls">
+        <button class="btn" id="btnArm" title="Arm microphone">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+          </svg>
+          <span class="btn-label">Arm</span>
+        </button>
+        <button class="btn" id="btnRecPlay" disabled title="Start recording">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <span class="btn-label">Play</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Title ────────────────────────────────────────────────────────── -->
+  <div class="app-title">Elocute</div>
+  <div class="status-text" id="statusText">ready</div>
+
+  <!-- ── Bottom half: Listen wheel with Pause + Stop ─────────────────── -->
+  <div class="half half-bot">
+    <div class="circle-wrap" id="wheelWrap">
+      <canvas id="wheelCanvas"></canvas>
+      <div class="controls">
+        <button class="btn" id="btnPause" disabled title="Pause">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          <span class="btn-label">Pause</span>
+        </button>
+        <button class="btn" id="btnStop" disabled title="Stop">
+          <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+          <span class="btn-label">Stop</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="saveToast">recording saved</div>
+
+  <!-- ── Settings bar ─────────────────────────────────────────────────── -->
+  <div class="settings-bar">
+    <div class="settings-arrows">
+      <button class="arrow-btn" id="arrowUp" title="Previous setting">
+        <svg viewBox="0 0 9 9" fill="currentColor"><path d="M4.5 1.5L8.5 7.5H0.5Z"/></svg>
+      </button>
+      <button class="arrow-btn" id="arrowDown" title="Next setting">
+        <svg viewBox="0 0 9 9" fill="currentColor"><path d="M4.5 7.5L8.5 1.5H0.5Z"/></svg>
+      </button>
+    </div>
+    <span class="settings-label" id="settingsLabel">Display Mode</span>
+    <div class="settings-actions" id="themeActions">
+      <button class="action-btn sun-btn" id="btnSun" title="Light mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4.2" fill="currentColor" stroke="none"/>
+          <line x1="12" y1="2" x2="12" y2="5.2"/>
+          <line x1="12" y1="18.8" x2="12" y2="22"/>
+          <line x1="2" y1="12" x2="5.2" y2="12"/>
+          <line x1="18.8" y1="12" x2="22" y2="12"/>
+          <line x1="5.05" y1="5.05" x2="7.4" y2="7.4"/>
+          <line x1="16.6" y1="16.6" x2="18.95" y2="18.95"/>
+          <line x1="5.05" y1="18.95" x2="7.4" y2="16.6"/>
+          <line x1="16.6" y1="7.4" x2="18.95" y2="5.05"/>
+        </svg>
+      </button>
+      <button class="action-btn moon-btn" id="btnMoon" title="Dark mode">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+    <div class="settings-actions" id="indexActions" style="display:none">
+      <button class="action-btn" id="btnGo" title="Leave to index">LEAVE</button>
+      <button class="action-btn" id="btnStay" title="Stay here">STAY</button>
+    </div>
+  </div>
+
+  <!-- ── Status icons ─────────────────────────────────────────────────── -->
+  <div class="status-icons">
+    <div class="si si-on" id="siWifi" title="Network">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+        <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+        <circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/>
+      </svg>
+    </div>
+    <div class="si-hp-wrap">
+      <div class="si si-off" id="siHeadphones" title="Headphones">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+          <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/>
+          <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+        </svg>
+        <svg class="si-slash" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="3" y1="3" x2="21" y2="21"/>
+        </svg>
+      </div>
+      <div class="mic-popup" id="hpPopup"></div>
+    </div>
+    <div class="si si-off" id="siLocation" title="Location">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+      </svg>
+      <svg class="si-slash" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="3" y1="3" x2="21" y2="21"/>
+      </svg>
+    </div>
+    <div class="si-mic-wrap">
+      <button class="si si-off si-mic-btn" id="siMic" title="Microphone">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+        </svg>
+        <svg class="si-slash" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="3" y1="3" x2="21" y2="21"/>
+        </svg>
+      </button>
+      <div class="mic-popup" id="micPopup"></div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  VOICE CANVAS — organic circle (top half, half-size)
+  // ══════════════════════════════════════════════════════════════════════
+  const voiceCanvas = document.getElementById('voiceCanvas');
+  const vCtx        = voiceCanvas.getContext('2d');
+  const VSIZE       = voiceCanvas.parentElement.offsetWidth;
+  const dpr         = window.devicePixelRatio || 1;
+  voiceCanvas.width  = VSIZE * dpr;
+  voiceCanvas.height = VSIZE * dpr;
+  vCtx.scale(dpr, dpr);
+
+  const VCX    = VSIZE / 2;
+  const VCY    = VSIZE / 2;
+  const BASE_R = Math.round(VSIZE * 0.38);
+
+  const N_CURVE = 128;
+  const COS_A   = new Float64Array(N_CURVE);
+  const SIN_A   = new Float64Array(N_CURVE);
+  for (let i = 0; i < N_CURVE; i++) {
+    const a  = (i / N_CURVE) * Math.PI * 2;
+    COS_A[i] = Math.cos(a);
+    SIN_A[i] = Math.sin(a);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  WHEEL CANVAS — rotating wheel (bottom half, half-size)
+  // ══════════════════════════════════════════════════════════════════════
+  const wheelCanvas = document.getElementById('wheelCanvas');
+  const wCtx        = wheelCanvas.getContext('2d');
+  const WSIZE       = wheelCanvas.parentElement.offsetWidth;
+  wheelCanvas.width  = WSIZE * dpr;
+  wheelCanvas.height = WSIZE * dpr;
+  wCtx.scale(dpr, dpr);
+
+  const WCX     = WSIZE / 2;
+  const WCY     = WSIZE / 2;
+  const WHEEL_R = Math.round(WSIZE * 0.41);
+  const TRI_S   = Math.round(WSIZE * 0.030);
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  ELEMENTS
+  // ══════════════════════════════════════════════════════════════════════
+  const btnArm     = document.getElementById('btnArm');
+  const btnRecPlay = document.getElementById('btnRecPlay');
+  const btnPause   = document.getElementById('btnPause');
+  const btnStop    = document.getElementById('btnStop');
+  const statusEl   = document.getElementById('statusText');
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  DUAL STATE — record and listen independently
+  // ══════════════════════════════════════════════════════════════════════
+  let recState    = 'idle';   // idle | armed | recording | recPaused
+  let listenState = 'idle';   // idle | playing | listenPaused | rewinding
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  THEME
+  // ══════════════════════════════════════════════════════════════════════
+  let theme = 'light';
+
+  function accentRGBA(a) {
+    return theme === 'dark' ? `rgba(160,80,255,${a})` : `rgba(255,136,0,${a})`;
+  }
+  function ringColor() {
+    return theme === 'dark' ? 'rgba(100,102,125,0.55)' : 'rgba(172,174,183,0.48)';
+  }
+  function triIdle() {
+    return theme === 'dark' ? 'rgba(200,202,218,0.32)' : 'rgba(88,90,102,0.32)';
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  RECORDING AUDIO STATE
+  // ══════════════════════════════════════════════════════════════════════
+  let audioCtx     = null;
+  let analyser     = null;
+  let micStream    = null;
+  let smoothAmp    = 0;
+  let freqData     = null;
+  let timeData     = null;
+  let angleBins    = null;
+  let voiceMinBin  = 0;
+  let voiceMaxBin  = 0;
+
+  let mediaRecorder      = null;
+  let recordedChunks     = [];
+  let capturedDurationMs = 0;
+
+  let smoothedRadii = null;
+  let spikeRadii    = null;
+  let phase         = 0;
+
+  // ── Route tracking ──────────────────────────────────────────────────
+  let routeWatchId = null;
+  let currentRouteId = null;
+  let routeStartTime = null;
+  let routePointSeq = 0;
+  let routePointBuffer = [];
+  let routeFlushTimer = null;
+  const ROUTE_FLUSH_INTERVAL = 5000;
+  const ROUTE_MIN_DISTANCE_M = 3;
+  let routeLastLat = null;
+  let routeLastLng = null;
+
+  function haversineM(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const toRad = v => v * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function onRoutePosition(pos) {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    if (routeLastLat !== null && haversineM(routeLastLat, routeLastLng, lat, lng) < ROUTE_MIN_DISTANCE_M) return;
+    routeLastLat = lat;
+    routeLastLng = lng;
+    if (currentRouteId) {
+      routePointSeq++;
+      routePointBuffer.push({
+        route_id: currentRouteId, lat, lng,
+        accuracy: pos.coords.accuracy || null,
+        recorded_at: new Date().toISOString(),
+        seq: routePointSeq,
+      });
+    }
+  }
+
+  async function flushRoutePoints() {
+    if (routePointBuffer.length === 0) return;
+    const batch = routePointBuffer.splice(0);
+    const sb = window._sb;
+    if (!sb) { routePointBuffer.unshift(...batch); return; }
+    const { error } = await sb.from('route_points').insert(batch);
+    if (error) { routePointBuffer.unshift(...batch); }
+  }
+
+  async function startRouteTracking() {
+    const sb = window._sb;
+    if (!sb || !navigator.geolocation) return;
+    if (localStorage.getItem('locationEnabled') !== 'true') return;
+    try {
+      const perm = await navigator.permissions.query({ name: 'geolocation' });
+      if (perm.state !== 'granted') return;
+    } catch { return; }
+    const { data, error } = await sb.from('routes').insert({ created_at: new Date().toISOString() }).select('id').single();
+    if (error || !data) return;
+    currentRouteId = data.id;
+    routeStartTime = Date.now();
+    routePointSeq = 0;
+    routePointBuffer = [];
+    routeLastLat = null;
+    routeLastLng = null;
+    routeWatchId = navigator.geolocation.watchPosition(onRoutePosition, () => {}, {
+      enableHighAccuracy: true, maximumAge: 2000, timeout: 10000,
+    });
+    routeFlushTimer = setInterval(flushRoutePoints, ROUTE_FLUSH_INTERVAL);
+  }
+
+  async function stopRouteTracking(recordingId) {
+    if (routeWatchId !== null) { navigator.geolocation.clearWatch(routeWatchId); routeWatchId = null; }
+    if (routeFlushTimer) { clearInterval(routeFlushTimer); routeFlushTimer = null; }
+    await flushRoutePoints();
+    if (currentRouteId && window._sb) {
+      const duration = Date.now() - (routeStartTime || Date.now());
+      const update = { ended_at: new Date().toISOString(), duration_ms: duration };
+      if (recordingId) update.recording_id = recordingId;
+      await window._sb.from('routes').update(update).eq('id', currentRouteId);
+    }
+    currentRouteId = null;
+    routeStartTime = null;
+  }
+
+  // ── Local folder persistence ────────────────────────────────────────
+  const IDB_NAME  = 'elocute-fs';
+  const IDB_STORE = 'handles';
+
+  function openIDB() {
+    return new Promise((res, rej) => {
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+      req.onsuccess = () => res(req.result);
+      req.onerror   = () => rej(req.error);
+    });
+  }
+
+  async function getStoredDirHandle() {
+    try {
+      const db = await openIDB();
+      const handle = await new Promise(res => {
+        const req = db.transaction(IDB_STORE).objectStore(IDB_STORE).get('dir');
+        req.onsuccess = () => res(req.result);
+        req.onerror   = () => res(null);
+      });
+      db.close();
+      if (!handle) return null;
+      const perm = await handle.queryPermission({ mode: 'readwrite' });
+      if (perm === 'granted') return handle;
+      const r = await handle.requestPermission({ mode: 'readwrite' });
+      return r === 'granted' ? handle : null;
+    } catch { return null; }
+  }
+
+  async function storeDirHandle(handle) {
+    try {
+      const db = await openIDB();
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(handle, 'dir');
+      await new Promise(res => { tx.oncomplete = res; });
+      db.close();
+    } catch {}
+  }
+
+  async function saveLocalFile(blob, fileName) {
+    if (!window.showDirectoryPicker) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      return;
+    }
+    let dirHandle = await getStoredDirHandle();
+    if (!dirHandle) {
+      try {
+        dirHandle = await window.showDirectoryPicker({ id: 'elocute', startIn: 'documents', mode: 'readwrite' });
+        await storeDirHandle(dirHandle);
+      } catch { return; }
+    }
+    const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+  }
+
+  async function startAudio() {
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
+      analyser  = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.75;
+      audioCtx.createMediaStreamSource(micStream).connect(analyser);
+
+      recordedChunks = [];
+      mediaRecorder = new MediaRecorder(micStream);
+      mediaRecorder.addEventListener('dataavailable', e => {
+        if (e.data.size > 0) recordedChunks.push(e.data);
+      });
+      mediaRecorder.addEventListener('stop', () => {
+        const chunks = recordedChunks.slice();
+        recordedChunks = [];
+        if (chunks.length === 0) return;
+        const blob = new Blob(chunks, { type: chunks[0].type || 'audio/webm' });
+        const fileName = `elocute-${Date.now()}.webm`;
+        uploadRecording(blob, fileName, capturedDurationMs);
+        saveLocalFile(blob, fileName);
+      });
+
+      const binHz = audioCtx.sampleRate / analyser.fftSize;
+      voiceMinBin = Math.max(1, Math.round(80 / binHz));
+      voiceMaxBin = Math.min(analyser.frequencyBinCount - 1, Math.round(8000 / binHz));
+
+      const logMin = Math.log(80);
+      const logMax = Math.log(8000);
+      angleBins = new Int32Array(N_CURVE);
+      for (let i = 0; i < N_CURVE; i++) {
+        const freq = Math.exp(logMin + (i / N_CURVE) * (logMax - logMin));
+        angleBins[i] = Math.max(voiceMinBin, Math.min(voiceMaxBin, Math.round(freq / binHz)));
+      }
+
+      freqData = new Uint8Array(analyser.frequencyBinCount);
+      timeData = new Uint8Array(analyser.fftSize);
+      smoothedRadii = new Float32Array(N_CURVE).fill(BASE_R);
+      spikeRadii = new Float32Array(N_CURVE).fill(0);
+
+      return true;
+    } catch {
+      setStatus('microphone access denied');
+      return false;
+    }
+  }
+
+  function stopAudio() {
+    analyser = null;
+    smoothAmp = 0;
+    freqData = null;
+    timeData = null;
+    smoothedRadii = null;
+    spikeRadii = null;
+    if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  }
+
+  // ── Recording duration tracking (no visual bar, just internal) ──────
+  const MAX_MS = 72 * 60 * 1000;
+  let recElapsedMs  = 0;
+  let recTimerStart = null;
+  let recTimerInterval = null;
+
+  function startRecTimer()  { recTimerStart = Date.now(); recTimerInterval = setInterval(recTick, 80); }
+  function pauseRecTimer()  { recElapsedMs += Date.now() - recTimerStart; clearInterval(recTimerInterval); recTimerInterval = null; }
+  function resetRecTimer()  { clearInterval(recTimerInterval); recTimerInterval = null; recElapsedMs = 0; recTimerStart = null; }
+
+  function recTick() {
+    const total = recElapsedMs + (Date.now() - recTimerStart);
+    if (total >= MAX_MS) { triggerRecStop(); }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  PLAYBACK (from LISTEN)
+  // ══════════════════════════════════════════════════════════════════════
+  const SUPABASE_URL = 'https://nqelzijdjgpvzcczfvvy.supabase.co';
+  let playlist = [];
+  let trackIndex = 0;
+  let audio = new Audio();
+  let playlistLoaded = false;
+
+  function waitForSB() {
+    return new Promise(resolve => {
+      if (window._sb) { resolve(window._sb); return; }
+      const iv = setInterval(() => {
+        if (window._sb) { clearInterval(iv); resolve(window._sb); }
+      }, 100);
+    });
+  }
+
+  async function loadPlaylist() {
+    if (playlistLoaded) return;
+    const sb = await waitForSB();
+    const { data, error } = await sb.from('recordings')
+      .select('id, file_path, duration_ms')
+      .order('created_at', { ascending: false });
+    if (error || !data || data.length === 0) return;
+    for (let i = data.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [data[i], data[j]] = [data[j], data[i]];
+    }
+    playlist = data;
+    playlistLoaded = true;
+  }
+
+  function getPublicURL(filePath) {
+    return SUPABASE_URL + '/storage/v1/object/public/recordings/' + filePath;
+  }
+
+  function loadTrack(index) {
+    if (playlist.length === 0) return false;
+    trackIndex = index % playlist.length;
+    audio.src = getPublicURL(playlist[trackIndex].file_path);
+    return true;
+  }
+
+  audio.addEventListener('ended', () => {
+    if (listenState === 'playing') {
+      if (playlist.length > 0) {
+        loadTrack(trackIndex + 1);
+        audio.play().catch(() => {});
+      } else {
+        listenState = 'idle'; syncUI();
+      }
+    }
+  });
+
+  audio.addEventListener('error', () => {
+    if (listenState === 'playing' && playlist.length > 1) {
+      loadTrack(trackIndex + 1);
+      audio.play().catch(() => {});
+    }
+  });
+
+  async function startPlayback() {
+    if (!playlistLoaded) await loadPlaylist();
+    if (playlist.length === 0) {
+      setStatus('no recordings yet');
+      listenState = 'idle'; syncUI();
+      return;
+    }
+    if (!audio.src || audio.src === window.location.href || audio.ended) {
+      loadTrack(trackIndex);
+    }
+    try {
+      await audio.play();
+    } catch (err) {
+      if (playlist.length > 1) {
+        loadTrack(trackIndex + 1);
+        try { await audio.play(); } catch { /* give up */ }
+      }
+    }
+  }
+
+  function pausePlayback() { audio.pause(); }
+  function stopPlayback()  { audio.pause(); audio.currentTime = 0; }
+
+  setTimeout(() => { loadPlaylist(); }, 500);
+
+  // ── Wheel state ─────────────────────────────────────────────────────
+  let wheelAngle = 0;
+  let lastWheelTs = 0;
+  const SPEED_CW  = 0.30;
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  DRAWING — VOICE (organic circle)
+  // ══════════════════════════════════════════════════════════════════════
+  function drawIdleCircle() {
+    vCtx.clearRect(0, 0, VSIZE, VSIZE);
+    const glowColor = getComputedStyle(document.documentElement).getPropertyValue('--idle-glow').trim();
+    const ringClr   = getComputedStyle(document.documentElement).getPropertyValue('--idle-ring').trim();
+    const grd = vCtx.createRadialGradient(VCX, VCY, BASE_R - 4, VCX, VCY, BASE_R + 16);
+    grd.addColorStop(0, glowColor);
+    grd.addColorStop(1, 'rgba(128,128,160,0)');
+    vCtx.beginPath();
+    vCtx.arc(VCX, VCY, BASE_R + 16, 0, Math.PI * 2);
+    vCtx.fillStyle = grd;
+    vCtx.fill();
+    vCtx.beginPath();
+    vCtx.arc(VCX, VCY, BASE_R, 0, Math.PI * 2);
+    vCtx.strokeStyle = ringClr;
+    vCtx.lineWidth = 1.5;
+    vCtx.stroke();
+  }
+
+  function drawOrganicCircle(vol) {
+    vCtx.clearRect(0, 0, VSIZE, VSIZE);
+
+    const dynBase    = BASE_R + vol * VSIZE * 0.04;
+    const MAX_DEFORM = VSIZE * 0.085;
+    const WOBBLE_AMP = VSIZE * 0.018;
+    const SPIKE_SCALE = VSIZE * 0.065;
+    const MAX_R       = VSIZE * 0.488;
+
+    const finalR = new Float32Array(N_CURVE);
+    for (let i = 0; i < N_CURVE; i++) {
+      const bin = angleBins[i];
+      let ampSmooth = freqData[bin - 2 < voiceMinBin ? voiceMinBin : bin - 2]
+                    + freqData[bin - 1 < voiceMinBin ? voiceMinBin : bin - 1]
+                    + freqData[bin]
+                    + freqData[bin + 1 > voiceMaxBin ? voiceMaxBin : bin + 1]
+                    + freqData[bin + 2 > voiceMaxBin ? voiceMaxBin : bin + 2];
+      ampSmooth = (ampSmooth / 5) / 255;
+
+      const a = (i / N_CURVE) * Math.PI * 2;
+      const wobble = Math.sin(a * 3 + phase) * WOBBLE_AMP
+                   + Math.sin(a * 5 + phase * 1.4) * WOBBLE_AMP * 0.45
+                   + Math.sin(a * 2 + phase * 0.65) * WOBBLE_AMP * 0.3;
+
+      const targetSmooth = dynBase + ampSmooth * MAX_DEFORM + wobble;
+      smoothedRadii[i] = smoothedRadii[i] * 0.70 + targetSmooth * 0.30;
+
+      const rawAmp = freqData[bin] / 255;
+      const targetSpike = Math.pow(rawAmp, 1.6) * SPIKE_SCALE;
+      spikeRadii[i] = spikeRadii[i] * 0.44 + targetSpike * 0.56;
+
+      finalR[i] = Math.min(smoothedRadii[i] + spikeRadii[i], MAX_R);
+    }
+
+    if (vol > 0.015) {
+      const grd = vCtx.createRadialGradient(VCX, VCY, 0, VCX, VCY, BASE_R * 1.18);
+      grd.addColorStop(0, accentRGBA(vol * 0.07));
+      grd.addColorStop(1, accentRGBA(0));
+      vCtx.beginPath();
+      vCtx.arc(VCX, VCY, BASE_R * 1.18, 0, Math.PI * 2);
+      vCtx.fillStyle = grd;
+      vCtx.fill();
+    }
+
+    vCtx.beginPath();
+    for (let i = 0; i < N_CURVE; i++) {
+      const j = (i + 1) % N_CURVE;
+      const x1 = VCX + finalR[i] * COS_A[i];
+      const y1 = VCY + finalR[i] * SIN_A[i];
+      const x2 = VCX + finalR[j] * COS_A[j];
+      const y2 = VCY + finalR[j] * SIN_A[j];
+      if (i === 0) {
+        const k = N_CURVE - 1;
+        vCtx.moveTo((VCX + finalR[k] * COS_A[k] + x1) / 2,
+                     (VCY + finalR[k] * SIN_A[k] + y1) / 2);
+      }
+      vCtx.quadraticCurveTo(x1, y1, (x1 + x2) / 2, (y1 + y2) / 2);
+    }
+    vCtx.closePath();
+
+    vCtx.strokeStyle = accentRGBA(0.28 + vol * 0.62);
+    vCtx.lineWidth   = 1.5 + vol * 2.5;
+    vCtx.shadowBlur  = 5 + vol * 18;
+    vCtx.shadowColor = accentRGBA(0.55);
+    vCtx.stroke();
+    vCtx.shadowBlur  = 0;
+
+    phase += 0.018;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  DRAWING — WHEEL (rotating triangles)
+  // ══════════════════════════════════════════════════════════════════════
+  function drawWheel() {
+    wCtx.clearRect(0, 0, WSIZE, WSIZE);
+
+    const active = (listenState === 'playing');
+
+    const grd = wCtx.createRadialGradient(WCX, WCY, WHEEL_R - 8, WCX, WCY, WHEEL_R + 28);
+    grd.addColorStop(0, active ? accentRGBA(0.13) : 'rgba(185,187,196,0.11)');
+    grd.addColorStop(1, active ? accentRGBA(0) : 'rgba(185,187,196,0)');
+    wCtx.beginPath();
+    wCtx.arc(WCX, WCY, WHEEL_R + 28, 0, Math.PI * 2);
+    wCtx.fillStyle = grd;
+    wCtx.fill();
+
+    wCtx.beginPath();
+    wCtx.arc(WCX, WCY, WHEEL_R, 0, Math.PI * 2);
+    wCtx.strokeStyle = active ? accentRGBA(0.50) : ringColor();
+    wCtx.lineWidth = active ? 1.8 : 1.5;
+    if (active) {
+      wCtx.shadowBlur  = 10;
+      wCtx.shadowColor = accentRGBA(0.45);
+    }
+    wCtx.stroke();
+    wCtx.shadowBlur = 0;
+
+    wCtx.save();
+    wCtx.translate(WCX, WCY);
+    wCtx.rotate(wheelAngle);
+    const tColor = active ? accentRGBA(0.88) : triIdle();
+    if (active) {
+      wCtx.shadowBlur  = 7;
+      wCtx.shadowColor = accentRGBA(0.55);
+    }
+    for (let i = 0; i < 3; i++) {
+      wCtx.save();
+      wCtx.rotate((i * 2 * Math.PI) / 3);
+      wCtx.beginPath();
+      wCtx.moveTo(WHEEL_R, 0);
+      wCtx.lineTo(WHEEL_R - TRI_S, -TRI_S);
+      wCtx.lineTo(WHEEL_R - TRI_S, TRI_S);
+      wCtx.closePath();
+      wCtx.fillStyle = tColor;
+      wCtx.fill();
+      wCtx.restore();
+    }
+    wCtx.shadowBlur = 0;
+    wCtx.restore();
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  ANIMATION LOOP
+  // ══════════════════════════════════════════════════════════════════════
+  function loop(ts) {
+    requestAnimationFrame(loop);
+
+    // Voice canvas
+    if (!analyser) {
+      drawIdleCircle();
+    } else {
+      analyser.getByteFrequencyData(freqData);
+      analyser.getByteTimeDomainData(timeData);
+      let sum = 0;
+      for (let i = 0; i < timeData.length; i++) {
+        const v = (timeData[i] - 128) / 128;
+        sum += v * v;
+      }
+      smoothAmp = smoothAmp * 0.80 + Math.sqrt(sum / timeData.length) * 0.20;
+      drawOrganicCircle(smoothAmp);
+    }
+
+    // Wheel canvas
+    const dt = lastWheelTs ? (ts - lastWheelTs) / 1000 : 0;
+    lastWheelTs = ts;
+    if (listenState === 'playing') wheelAngle += SPEED_CW * dt;
+    drawWheel();
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  UI SYNC
+  // ══════════════════════════════════════════════════════════════════════
+  function setStatus(msg) { statusEl.textContent = msg; }
+
+  function syncUI() {
+    // Top: Arm + Play
+    [btnArm, btnRecPlay].forEach(b => b.classList.remove('active'));
+    switch (recState) {
+      case 'idle':
+        btnArm.disabled = false; btnRecPlay.disabled = true;
+        break;
+      case 'armed':
+        btnArm.disabled = false; btnRecPlay.disabled = false;
+        btnArm.classList.add('active');
+        break;
+      case 'recording':
+        btnArm.disabled = true; btnRecPlay.disabled = true;
+        btnRecPlay.classList.add('active');
+        break;
+      case 'recPaused':
+        btnArm.disabled = true; btnRecPlay.disabled = false;
+        break;
+    }
+
+    // Bottom: Pause + Stop
+    [btnPause, btnStop].forEach(b => b.classList.remove('active'));
+    const anyActive = recState === 'recording' || recState === 'recPaused' ||
+                      listenState === 'playing' || listenState === 'listenPaused';
+    btnPause.disabled = !(recState === 'recording' || listenState === 'playing');
+    btnStop.disabled  = !anyActive;
+
+    if (recState === 'recPaused' || listenState === 'listenPaused') {
+      btnPause.classList.add('active');
+    }
+
+    // Combined status
+    const parts = [];
+    if (recState === 'armed')      parts.push('armed');
+    if (recState === 'recording')  parts.push('recording');
+    if (recState === 'recPaused')  parts.push('rec paused');
+    if (listenState === 'playing')       parts.push('playing');
+    if (listenState === 'listenPaused')  parts.push('play paused');
+    setStatus(parts.length ? parts.join(' · ') : 'ready');
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  RECORDING ACTIONS
+  // ══════════════════════════════════════════════════════════════════════
+  function finishRecording() {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+    capturedDurationMs = recElapsedMs + (recTimerStart ? Date.now() - recTimerStart : 0);
+    mediaRecorder.stop();
+    mediaRecorder = null;
+  }
+
+  function triggerRecStop() {
+    const hadRecorder = mediaRecorder && mediaRecorder.state !== 'inactive';
+    finishRecording();
+    if (!hadRecorder) stopRouteTracking(null);
+    stopAudio(); resetRecTimer(); recState = 'idle'; syncUI();
+  }
+
+  const saveToast = document.getElementById('saveToast');
+  let toastTimer  = null;
+
+  function showToast(msg, isError) {
+    clearTimeout(toastTimer);
+    saveToast.textContent = msg;
+    saveToast.style.color       = isError ? 'rgba(220,60,60,0.90)' : 'var(--accent)';
+    saveToast.style.borderColor = isError ? 'rgba(220,60,60,0.45)' : 'var(--accent-border)';
+    saveToast.style.boxShadow   = isError
+      ? '0 0 18px rgba(220,60,60,0.28), 0 2px 10px rgba(0,0,0,0.10)'
+      : '0 0 18px var(--accent-glow), 0 2px 10px rgba(0,0,0,0.10)';
+    saveToast.classList.add('visible');
+    toastTimer = setTimeout(() => saveToast.classList.remove('visible'), isError ? 4000 : 3000);
+  }
+
+  async function uploadRecording(blob, fileName, durationMs) {
+    try {
+      const { error: storageErr } = await window._sb.storage
+        .from('recordings')
+        .upload(fileName, blob, { contentType: blob.type, upsert: false });
+      if (storageErr) throw storageErr;
+
+      const { data: recData, error: dbErr } = await window._sb
+        .from('recordings')
+        .insert({ duration_ms: Math.round(durationMs), file_path: fileName })
+        .select('id')
+        .single();
+      if (dbErr) throw dbErr;
+
+      await stopRouteTracking(recData?.id || null);
+      showToast('recording saved', false);
+    } catch (err) {
+      await stopRouteTracking(null);
+      showToast(err?.message || String(err), true);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  BUTTON HANDLERS
+  // ══════════════════════════════════════════════════════════════════════
+
+  // ARM (top circle) — toggle mic on/off
+  btnArm.addEventListener('click', async () => {
+    if (recState === 'idle') {
+      const ok = await startAudio();
+      if (!ok) return;
+      if (localStorage.getItem('locationEnabled') === 'true' && navigator.geolocation) {
+        await new Promise(resolve => {
+          navigator.geolocation.getCurrentPosition(() => resolve(), () => resolve(),
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+        });
+      }
+      recState = 'armed'; syncUI();
+    } else if (recState === 'armed') {
+      stopAudio(); recState = 'idle'; syncUI();
+    }
+  });
+
+  // PLAY (top circle) — start/resume recording AND start playback
+  btnRecPlay.addEventListener('click', async () => {
+    if (recState === 'armed') {
+      recState = 'recording'; syncUI(); startRecTimer();
+      if (mediaRecorder && mediaRecorder.state === 'inactive') mediaRecorder.start();
+      startRouteTracking();
+      // Also start playback if idle
+      if (listenState === 'idle') {
+        listenState = 'playing'; syncUI();
+        await startPlayback();
+      }
+    } else if (recState === 'recPaused') {
+      recState = 'recording'; syncUI(); startRecTimer();
+      if (mediaRecorder && mediaRecorder.state === 'paused') mediaRecorder.resume();
+      // Also resume playback if paused
+      if (listenState === 'listenPaused') {
+        listenState = 'playing'; syncUI();
+        await startPlayback();
+      }
+    }
+  });
+
+  // PAUSE (bottom circle) — pause both recording and playback
+  btnPause.addEventListener('click', () => {
+    if (recState === 'recording') {
+      recState = 'recPaused'; pauseRecTimer();
+      if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.pause();
+    }
+    if (listenState === 'playing') {
+      pausePlayback();
+      listenState = 'listenPaused';
+    }
+    syncUI();
+  });
+
+  // STOP (bottom circle) — stop both recording and playback
+  btnStop.addEventListener('click', () => {
+    if (recState !== 'idle') triggerRecStop();
+    if (listenState !== 'idle') {
+      stopPlayback();
+      listenState = 'idle';
+    }
+    syncUI();
+  });
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  THEME CONTROLS
+  // ══════════════════════════════════════════════════════════════════════
+  const btnSun  = document.getElementById('btnSun');
+  const btnMoon = document.getElementById('btnMoon');
+
+  function setTheme(t) {
+    theme = t;
+    localStorage.setItem('theme', t);
+    document.body.classList.toggle('dark', t === 'dark');
+    btnSun.classList.toggle('active', t === 'light');
+    btnMoon.classList.toggle('active', t === 'dark');
+  }
+
+  btnSun.addEventListener('click', () => setTheme('light'));
+  btnMoon.addEventListener('click', () => setTheme('dark'));
+
+  // ── Settings carousel ───────────────────────────────────────────────
+  const SETTINGS_PAGES = ['Display Mode', 'See Index?'];
+  let settingPage = 0;
+  const settingsLabel = document.getElementById('settingsLabel');
+  const themeActions  = document.getElementById('themeActions');
+  const indexActions  = document.getElementById('indexActions');
+
+  function showSettingPage(i) {
+    settingPage = (i + SETTINGS_PAGES.length) % SETTINGS_PAGES.length;
+    settingsLabel.textContent  = SETTINGS_PAGES[settingPage];
+    themeActions.style.display = settingPage === 0 ? 'flex' : 'none';
+    indexActions.style.display = settingPage === 1 ? 'flex' : 'none';
+  }
+
+  document.getElementById('arrowUp').addEventListener('click', () => showSettingPage(settingPage - 1));
+  document.getElementById('arrowDown').addEventListener('click', () => showSettingPage(settingPage + 1));
+
+  document.getElementById('btnGo').addEventListener('click', () => {
+    if (window.parent !== window) { window.parent.postMessage('goIndex', '*'); return; }
+    window.location.href = '../index-elocute.html';
+  });
+  document.getElementById('btnStay').addEventListener('click', () => showSettingPage(0));
+
+  // ── Boot ────────────────────────────────────────────────────────────
+  setTheme(localStorage.getItem('theme') || 'light');
+  syncUI();
+  requestAnimationFrame(loop);
+
+})();
+
+// ══════════════════════════════════════════════════════════════════════
+//  STATUS ICONS
+// ══════════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function () {
+  const siHp     = document.getElementById('siHeadphones');
+  const hpPopup  = document.getElementById('hpPopup');
+  const siMic    = document.getElementById('siMic');
+  const micPopup = document.getElementById('micPopup');
+
+  let selHpId = null;
+
+  function setHp(on) {
+    siHp.classList.toggle('si-on', on);
+    siHp.classList.toggle('si-off', !on);
+  }
+  async function refreshHp() {
+    if (!navigator.mediaDevices) { setHp(false); return; }
+    try {
+      const devs = await navigator.mediaDevices.enumerateDevices();
+      setHp(devs.filter(d => d.kind === 'audiooutput' && d.deviceId !== 'default').length > 0);
+    } catch { setHp(false); }
+  }
+  refreshHp();
+  if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', refreshHp);
+
+  async function openHpPopup() {
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    const outputs = devs.filter(d => d.kind === 'audiooutput');
+    hpPopup.innerHTML = '';
+    outputs.forEach((d, i) => {
+      const row = document.createElement('div');
+      row.className = 'mic-popup-item' + (d.deviceId === selHpId ? ' si-active' : '');
+      row.textContent = d.label || ('Speaker ' + (i + 1));
+      row.addEventListener('click', e => {
+        e.stopPropagation();
+        selHpId = d.deviceId;
+        hpPopup.querySelectorAll('.mic-popup-item').forEach(r => r.classList.remove('si-active'));
+        row.classList.add('si-active');
+        hpPopup.style.display = 'none';
+        setHp(true);
+      });
+      hpPopup.appendChild(row);
+    });
+    const hpMuteRow = document.createElement('div');
+    hpMuteRow.className = 'mic-popup-item' + (selHpId === 'mute' ? ' si-active' : '');
+    hpMuteRow.textContent = 'Mute';
+    hpMuteRow.addEventListener('click', e => {
+      e.stopPropagation();
+      selHpId = 'mute';
+      hpPopup.querySelectorAll('.mic-popup-item').forEach(r => r.classList.remove('si-active'));
+      hpMuteRow.classList.add('si-active');
+      hpPopup.style.display = 'none';
+      setHp(false);
+    });
+    hpPopup.appendChild(hpMuteRow);
+    hpPopup.style.display = 'block';
+  }
+
+  siHp.addEventListener('click', async e => {
+    e.stopPropagation();
+    if (hpPopup.style.display === 'block') { hpPopup.style.display = 'none'; return; }
+    openHpPopup();
+  });
+
+  let micGranted = false;
+  let selMicId = null;
+
+  function setMicOn(on) {
+    siMic.classList.toggle('si-on', on);
+    siMic.classList.toggle('si-off', !on);
+  }
+
+  if (navigator.permissions) {
+    navigator.permissions.query({ name: 'microphone' }).then(p => {
+      if (p.state === 'granted') { micGranted = true; setMicOn(true); }
+      p.addEventListener('change', () => { micGranted = p.state === 'granted'; setMicOn(micGranted); });
+    }).catch(() => {});
+  }
+
+  async function requestMic() {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      s.getTracks().forEach(t => t.stop());
+      micGranted = true; setMicOn(true);
+    } catch { micGranted = false; setMicOn(false); }
+  }
+
+  async function openPopup() {
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    const inputs = devs.filter(d => d.kind === 'audioinput');
+    micPopup.innerHTML = '';
+    inputs.forEach((d, i) => {
+      const row = document.createElement('div');
+      row.className = 'mic-popup-item' + (d.deviceId === selMicId ? ' si-active' : '');
+      row.textContent = d.label || ('Microphone ' + (i + 1));
+      row.addEventListener('click', e => {
+        e.stopPropagation();
+        selMicId = d.deviceId;
+        micPopup.querySelectorAll('.mic-popup-item').forEach(r => r.classList.remove('si-active'));
+        row.classList.add('si-active');
+        micPopup.style.display = 'none';
+        setMicOn(true);
+      });
+      micPopup.appendChild(row);
+    });
+    const micMuteRow = document.createElement('div');
+    micMuteRow.className = 'mic-popup-item' + (selMicId === 'mute' ? ' si-active' : '');
+    micMuteRow.textContent = 'Mute';
+    micMuteRow.addEventListener('click', e => {
+      e.stopPropagation();
+      selMicId = 'mute';
+      micPopup.querySelectorAll('.mic-popup-item').forEach(r => r.classList.remove('si-active'));
+      micMuteRow.classList.add('si-active');
+      micPopup.style.display = 'none';
+      setMicOn(false);
+    });
+    micPopup.appendChild(micMuteRow);
+    micPopup.style.display = 'block';
+  }
+
+  siMic.addEventListener('click', async e => {
+    e.stopPropagation();
+    if (micPopup.style.display === 'block') { micPopup.style.display = 'none'; return; }
+    if (!micGranted) await requestMic();
+    if (micGranted) openPopup();
+  });
+
+  document.addEventListener('click', () => { micPopup.style.display = 'none'; hpPopup.style.display = 'none'; });
+
+  const siLocation = document.getElementById('siLocation');
+  let locationOn = localStorage.getItem('locationEnabled') === 'true';
+
+  function setLocation(on) {
+    locationOn = on;
+    localStorage.setItem('locationEnabled', String(on));
+    siLocation.classList.toggle('si-on', on);
+    siLocation.classList.toggle('si-off', !on);
+  }
+
+  setLocation(locationOn);
+
+  siLocation.addEventListener('click', () => {
+    if (!locationOn) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          () => setLocation(true),
+          () => setLocation(false)
+        );
+      } else { setLocation(false); }
+    } else {
+      setLocation(false);
+    }
+  });
+});
+
+// ── Settings bar touch-brighten ───────────────────────────────────────
+(function () {
+  const bar = document.querySelector('.settings-bar');
+  if (!bar) return;
+  let timer;
+  bar.addEventListener('touchstart', () => {
+    clearTimeout(timer);
+    bar.classList.add('lit');
+  }, { passive: true });
+  bar.addEventListener('touchend', () => {
+    timer = setTimeout(() => bar.classList.remove('lit'), 1200);
+  }, { passive: true });
+}());
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  window._sb = supabase.createClient(
+    'https://nqelzijdjgpvzcczfvvy.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xZWx6aWpkamdwdnpjY3pmdnZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NjUyMzgsImV4cCI6MjA4ODM0MTIzOH0.oVB3MNpvsTTnaqmdimlSrRPzx_c7czDARTerzvC3Et8'
+  );
+</script>
+</body>
+</html>
